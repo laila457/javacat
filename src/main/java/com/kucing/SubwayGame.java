@@ -1,0 +1,786 @@
+package main.java.com.kucing;
+
+import javax.swing.*;
+import java.awt.*;
+import java.awt.event.*;
+import java.awt.geom.QuadCurve2D;
+import java.util.ArrayList;
+import java.util.Random;
+
+
+public class SubwayGame extends JPanel implements ActionListener, KeyListener {
+    private JFrame parentFrame;  // Add this line
+    private JButton backButton;  // Add this with other class variables
+    
+    // Inner class untuk Obstacle
+    // Update the Obstacle inner class
+    private class Obstacle {
+        int x, y, lane;
+        int jumpOffset = 0;
+        boolean isJumping = false;
+        
+        Obstacle(int lane) {
+            this.lane = lane;
+            this.y = -50;
+            this.x = 200 + (lane * 100);
+            this.isJumping = Math.random() < 0.3; // 30% chance to jump
+        }
+    }
+    private int playerX = 300;
+    private int playerY = 400;
+    private int playerLane = 1; // 0=kiri, 1=tengah, 2=kanan
+    private int score = 0;
+    private boolean isJumping = false;
+    private int jumpHeight = 0;
+    private boolean isGameOver = false;
+    private ArrayList<Obstacle> obstacles = new ArrayList<>();
+    private Timer timer;
+    private Random random = new Random();
+
+    // Definisi warna tema yang selaras dengan login
+    private static final Color SOFT_PURPLE = new Color(230, 230, 250);
+    private static final Color DARK_PURPLE = new Color(103, 58, 183);
+    private static final Color LIGHT_PURPLE = new Color(209, 196, 233);
+    private static final Color WHITE = Color.WHITE;
+    private static final Color BLACK = Color.BLACK;
+
+    // Tambahkan variabel untuk warna dan gradien
+    private GradientPaint skyGradient = new GradientPaint(
+        0, 0, SOFT_PURPLE,
+        0, 600, LIGHT_PURPLE
+    );
+    
+    private Color[] laneColors = {
+        new Color(DARK_PURPLE.getRed(), DARK_PURPLE.getGreen(), DARK_PURPLE.getBlue(), 100),
+        new Color(DARK_PURPLE.getRed(), DARK_PURPLE.getGreen(), DARK_PURPLE.getBlue(), 80),
+        new Color(DARK_PURPLE.getRed(), DARK_PURPLE.getGreen(), DARK_PURPLE.getBlue(), 60)
+    };
+    private int backgroundOffset = 0;
+    private JButton playAgainButton;
+    private JButton exitButton;
+    private JButton exitToMainButton;
+    private JButton viewScoresButton;
+    
+        private void initializeButtons() {
+            playAgainButton = new JButton("Main Lagi");
+            exitButton = new JButton("Selesai");
+            exitToMainButton = new JButton("Kembali ke Menu");
+            
+            playAgainButton.setBounds(getWidth()/2 - 160, getHeight()/2 + 120, 100, 30);
+            exitButton.setBounds(getWidth()/2 + 60, getHeight()/2 + 120, 100, 30);
+            exitToMainButton.setBounds(getWidth()/2 - 50, getHeight()/2 + 160, 120, 30);
+            
+            playAgainButton.setVisible(false);
+            exitButton.setVisible(false);
+            exitToMainButton.setVisible(false);
+            
+            playAgainButton.addActionListener(e -> {
+                resetGame();
+                timer.start();
+                requestFocusInWindow();
+            });
+            
+            exitButton.addActionListener(e -> {
+                Leaderboard.addScore(score);
+                Leaderboard.showLeaderboard(parentFrame);
+            });
+    
+            exitToMainButton.addActionListener(e -> {
+                timer.stop();
+                MainGame mainGame = new MainGame();
+                parentFrame.getContentPane().removeAll();
+                parentFrame.add(mainGame.getMainPanel());
+                parentFrame.revalidate();
+                parentFrame.repaint();
+            });
+            
+            add(playAgainButton);
+            add(exitButton);
+            add(exitToMainButton);
+        }
+
+        private void resetGame() {
+            isGameOver = false;
+            score = 0;
+            obstacles.clear();
+            playerLane = 1;
+            int trackWidth = 300;
+            int startX = (getWidth() - trackWidth) / 2;
+            playerX = startX + (playerLane * (trackWidth/3)) + 5;
+            
+            // Sembunyikan semua tombol
+            playAgainButton.setVisible(false);
+            exitButton.setVisible(false);
+            exitToMainButton.setVisible(false);
+            viewScoresButton.setVisible(false);
+            
+            // Reset fokus ke panel game
+            requestFocusInWindow();
+        }
+    
+        private void handleGameOver() {
+           isGameOver = true;
+            // Remove the immediate leaderboard display
+        }
+    
+        public SubwayGame(JFrame frame) {
+            this.parentFrame = frame;
+            setPreferredSize(new Dimension(800, 600));
+            setBackground(new Color(135, 206, 235)); // Warna langit
+            timer = new Timer(20, this);
+            timer.start();
+            addKeyListener(this);
+            setFocusable(true);
+            
+            // Initialize back button
+            backButton = new JButton("Back to Leaderboard");
+            backButton.setVisible(false);
+            backButton.addActionListener(e -> {
+                timer.stop();
+                Leaderboard.showLeaderboard(parentFrame);
+                Leaderboard.addScore(score);
+            });
+            setLayout(null);
+            backButton.setBounds(getWidth()/2 - 80, getHeight()/2 + 120, 160, 30);
+            add(backButton);
+            
+            // Inisialisasi tombol-tombol game over
+            setLayout(null); // Penting! Agar bisa mengatur posisi tombol secara manual
+            initializeButtons(); // Pastikan ini dipanggil
+            
+            // Inisialisasi gradien langit
+            skyGradient = new GradientPaint(
+                0, 0, new Color(135, 206, 235),
+                0, 600, new Color(65, 105, 225)
+            );
+        }
+
+        @Override
+        protected void paintComponent(Graphics g) {
+            super.paintComponent(g);
+            Graphics2D g2d = (Graphics2D) g;
+            
+            // Aktifkan anti-aliasing untuk grafik yang lebih halus
+            g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            
+            // Gambar latar belakang dengan gradien
+            g2d.setPaint(skyGradient);
+            g2d.fillRect(0, 0, getWidth(), getHeight());
+            
+            // Gambar jalur dengan efek 3D
+            drawTrack(g2d);
+            
+            // Gambar pemain dengan bentuk yang lebih menarik
+            drawPlayer(g2d);
+            
+            // Gambar rintangan dengan efek bayangan
+            drawObstacles(g2d);
+            
+            // Gambar skor dengan efek bayangan
+            drawScore(g2d);
+            
+            if (isGameOver) {
+                drawGameOver(g2d);
+            }
+        }
+        
+        // Update color scheme
+        private static final Color SKY_TOP = new Color(142, 68, 173);    // Purple top
+        private static final Color SKY_BOTTOM = new Color(155, 89, 182); // Lighter purple bottom
+        private static final Color TRACK_COLOR = new Color(103, 58, 183);
+        private static final Color TRACK_LINES = new Color(255, 255, 255, 180);
+        
+        private void drawTrack(Graphics2D g2d) {
+            int trackWidth = 300;
+            int startX = (getWidth() - trackWidth) / 2;
+            
+            // Draw fancy background with stars
+            GradientPaint skyGradient = new GradientPaint(
+                0, 0, SKY_TOP,
+                0, getHeight(), SKY_BOTTOM
+            );
+            g2d.setPaint(skyGradient);
+            g2d.fillRect(0, 0, getWidth(), getHeight());
+            
+            // Add twinkling stars
+            g2d.setColor(new Color(255, 255, 255, 150));
+            long currentTime = System.currentTimeMillis();
+            Random rand = new Random(currentTime / 1000);
+            for (int i = 0; i < 50; i++) {
+                int x = rand.nextInt(getWidth());
+                int y = rand.nextInt(getHeight());
+                int size = rand.nextInt(3) + 1;
+                g2d.fillOval(x, y, size, size);
+            }
+            
+            // Draw track with 3D effect
+            GradientPaint trackGradient = new GradientPaint(
+                startX, 0, TRACK_COLOR,
+                startX + trackWidth, 0, new Color(TRACK_COLOR.getRed(), 
+                TRACK_COLOR.getGreen(), TRACK_COLOR.getBlue(), 150)
+            );
+            g2d.setPaint(trackGradient);
+            
+            // Main track with perspective
+            int[] xPoints = {startX - 20, startX + trackWidth + 20, 
+                            startX + trackWidth/2 + 100, startX + trackWidth/2 - 100};
+            int[] yPoints = {getHeight(), getHeight(), 0, 0};
+            g2d.fillPolygon(xPoints, yPoints, 4);
+            
+            // Track lines with perspective effect
+            g2d.setColor(TRACK_LINES);
+            for(int y = backgroundOffset % 40; y < getHeight(); y += 40) {
+                double perspective = 1 - (y / (double)getHeight());
+                int lineWidth = (int)(10 * (1 - perspective * 0.5));
+                
+                for(int lane = 0; lane < 3; lane++) {
+                    int laneX = startX + (lane * (trackWidth/3));
+                    int adjustedX = (int)(laneX + (perspective * 50));
+                    g2d.fillRect(adjustedX + (trackWidth/6) - lineWidth/2, 
+                                y, lineWidth, 20);
+                }
+            }
+            
+            // Add side barriers with glow effect
+            GradientPaint barrierGlow = new GradientPaint(
+                0, 0, new Color(255, 255, 255, 100),
+                0, getHeight(), new Color(255, 255, 255, 30)
+            );
+            g2d.setPaint(barrierGlow);
+            g2d.fillRect(startX - 25, 0, 5, getHeight());
+            g2d.fillRect(startX + trackWidth + 20, 0, 5, getHeight());
+        }
+
+        private void drawObstacles(Graphics2D g2d) {
+            for (Obstacle obs : obstacles) {
+                // Efek bayangan yang lebih realistis dengan gradasi
+                g2d.setColor(new Color(0, 0, 0, 30));
+                g2d.fillOval(obs.x - 8, obs.y + 35, 46, 15);
+                
+                // Badan tempat sampah dengan efek 3D
+                GradientPaint binBodyGradient = new GradientPaint(
+                    obs.x, obs.y, new Color(120, 120, 120),
+                    obs.x + 30, obs.y, new Color(80, 80, 80)
+                );
+                g2d.setPaint(binBodyGradient);
+                g2d.fillRect(obs.x, obs.y, 30, 40);
+                
+                // Efek highlight pada badan
+                g2d.setColor(new Color(140, 140, 140, 100));
+                g2d.fillRect(obs.x + 2, obs.y + 2, 5, 36);
+                
+                // Tutup tempat sampah dengan efek 3D
+                GradientPaint lidGradient = new GradientPaint(
+                    obs.x - 5, obs.y - 5, new Color(100, 100, 100),
+                    obs.x + 35, obs.y - 5, new Color(60, 60, 60)
+                );
+                g2d.setPaint(lidGradient);
+                g2d.fillRect(obs.x - 5, obs.y - 5, 40, 10);
+                
+                // Efek highlight pada tutup
+                g2d.setColor(new Color(130, 130, 130, 80));
+                g2d.fillRect(obs.x - 3, obs.y - 4, 36, 2);
+                
+                // Pegangan tutup dengan efek 3D
+                GradientPaint handleGradient = new GradientPaint(
+                    obs.x + 10, obs.y - 8, new Color(70, 70, 70),
+                    obs.x + 20, obs.y - 8, new Color(40, 40, 40)
+                );
+                g2d.setPaint(handleGradient);
+                g2d.fillRect(obs.x + 10, obs.y - 8, 10, 5);
+                
+                // Efek mengkilap pada pegangan
+                g2d.setColor(new Color(150, 150, 150, 70));
+                g2d.fillRect(obs.x + 11, obs.y - 7, 8, 2);
+                
+                // Garis-garis detail dengan efek mengkilap
+                g2d.setStroke(new BasicStroke(1.0f));
+                g2d.setColor(new Color(50, 50, 50, 150));
+                // Garis vertikal
+                g2d.drawLine(obs.x + 10, obs.y, obs.x + 10, obs.y + 40);
+                g2d.drawLine(obs.x + 20, obs.y, obs.x + 20, obs.y + 40);
+                // Garis horizontal
+                g2d.drawLine(obs.x, obs.y + 13, obs.x + 30, obs.y + 13);
+                g2d.drawLine(obs.x, obs.y + 26, obs.x + 30, obs.y + 26);
+                
+                // Efek highlight di sudut-sudut
+                g2d.setColor(new Color(255, 255, 255, 30));
+                g2d.drawLine(obs.x, obs.y, obs.x, obs.y + 40); // Kiri
+                g2d.drawLine(obs.x, obs.y, obs.x + 30, obs.y); // Atas
+                
+                // Efek bayangan di sudut-sudut
+                g2d.setColor(new Color(0, 0, 0, 30));
+                g2d.drawLine(obs.x + 30, obs.y, obs.x + 30, obs.y + 40); // Kanan
+                g2d.drawLine(obs.x, obs.y + 40, obs.x + 30, obs.y + 40); // Bawah
+            }
+        }
+
+        private void drawScore(Graphics2D g2d) {
+            // Efek glow untuk skor
+            g2d.setFont(new Font("Arial", Font.BOLD, 30));
+            
+            // Outer glow
+            g2d.setColor(new Color(255, 215, 0, 50));
+            g2d.drawString("Skor: " + score, 23, 43);
+            g2d.drawString("Skor: " + score, 21, 41);
+            g2d.drawString("Skor: " + score, 19, 39);
+            
+            // Inner shadow
+            g2d.setColor(new Color(0, 0, 0, 100));
+            g2d.drawString("Skor: " + score, 22, 42);
+            
+            // Main text dengan gradien
+            GradientPaint scoreGradient = new GradientPaint(
+                20, 20, new Color(255, 215, 0),
+                20, 50, new Color(255, 180, 0)
+            );
+            g2d.setPaint(scoreGradient);
+            g2d.drawString("Skor: " + score, 20, 40);
+        }
+        
+        private void drawPlayer(Graphics2D g2d) {
+            int playerWidth = 40;
+            int playerHeight = 50;
+            
+            // Efek bayangan kucing yang lebih realistis
+            g2d.setColor(new Color(0, 0, 0, 30));
+            g2d.fillOval(playerX - 5, playerY - jumpHeight + 5, playerWidth + 10, 25);
+            
+            // Badan kucing dengan gradien yang lebih natural
+            GradientPaint catGradient = new GradientPaint(
+                playerX, playerY - jumpHeight,
+                LIGHT_PURPLE,
+                playerX + playerWidth, playerY - jumpHeight + playerHeight,
+                DARK_PURPLE
+            );
+
+            g2d.setPaint(catGradient);
+            g2d.fillOval(playerX, playerY - jumpHeight, playerWidth, playerHeight);
+            
+            // Pola bulu kucing
+            g2d.setColor(new Color(190, 170, 210, 50));
+            for(int i = 0; i < 5; i++) {
+                g2d.drawArc(playerX + (i*8), playerY - jumpHeight + 10, 10, 30, 0, 180);
+            }
+            
+            // Kepala kucing dengan bentuk yang lebih alami
+            GradientPaint headGradient = new GradientPaint(
+                playerX, playerY - jumpHeight - 15,
+                LIGHT_PURPLE,
+                playerX + playerWidth, playerY - jumpHeight + 5,
+                DARK_PURPLE
+            );
+            g2d.setPaint(headGradient);
+            g2d.fillOval(playerX + 5, playerY - jumpHeight - 15, playerWidth - 10, playerHeight - 15);
+            
+            // Mata kucing yang lebih ekspresif - berubah saat game over
+            // Bagian putih mata
+            g2d.setColor(new Color(255, 255, 245));
+            g2d.fillOval(playerX + 12, playerY - jumpHeight - 10, 8, 9);
+            g2d.fillOval(playerX + 25, playerY - jumpHeight - 10, 8, 9);
+            
+            if (isGameOver) {
+                // Mata sedih dengan air mata
+                g2d.setColor(new Color(80, 200, 120));
+                // Mata kiri
+                g2d.fillArc(playerX + 13, playerY - jumpHeight - 9, 6, 7, 0, -180);
+                // Mata kanan
+                g2d.fillArc(playerX + 26, playerY - jumpHeight - 9, 6, 7, 0, -180);
+                
+                // Air mata
+                g2d.setColor(new Color(100, 149, 237, 180));
+                g2d.fillOval(playerX + 14, playerY - jumpHeight - 5, 3, 5);
+                g2d.fillOval(playerX + 27, playerY - jumpHeight - 5, 3, 5);
+                
+                // Mulut sedih
+                g2d.setColor(new Color(0, 0, 0, 100));
+                g2d.setStroke(new BasicStroke(1.0f));
+                g2d.drawArc(playerX + 18, playerY - jumpHeight - 2, 4, 4, -180, 180);
+                
+                // Efek tabrakan
+                // Bintang-bintang kecil di sekitar kepala
+                g2d.setColor(new Color(255, 255, 0, 180));
+                for (int i = 0; i < 8; i++) {
+                    double angle = i * Math.PI / 4;
+                    int starX = (int)(playerX + 20 + Math.cos(angle) * 25);
+                    int starY = (int)(playerY - jumpHeight + Math.sin(angle) * 25);
+                    drawStar(g2d, starX, starY, 4);
+                }
+                
+                // Efek getaran
+                if (System.currentTimeMillis() % 200 < 100) {
+                    playerX += 2;
+                }
+            } else {
+                // Mata normal
+                g2d.setColor(new Color(255, 255, 255));
+                g2d.fillOval(playerX + 12, playerY - jumpHeight - 10, 8, 9);
+                g2d.fillOval(playerX + 25, playerY - jumpHeight - 10, 8, 9);
+                
+                // Iris mata dengan gradien
+                GradientPaint irisGradient = new GradientPaint(
+                    playerX, playerY - jumpHeight - 8,
+                    new Color(80, 200, 120),  // Warna iris hijau
+                    playerX + 4, playerY - jumpHeight - 4,
+                    new Color(40, 160, 80)
+                );
+                g2d.setPaint(irisGradient);
+                g2d.fillOval(playerX + 13, playerY - jumpHeight - 9, 6, 7);
+                g2d.fillOval(playerX + 26, playerY - jumpHeight - 9, 6, 7);
+                
+                // Pupil mata yang lebih detail
+                g2d.setColor(Color.BLACK);
+                g2d.fillOval(playerX + 14, playerY - jumpHeight - 8, 4, 5);
+                g2d.fillOval(playerX + 27, playerY - jumpHeight - 8, 4, 5);
+                
+                // Kilau mata yang lebih realistis
+                g2d.setColor(new Color(255, 255, 255, 200));
+                g2d.fillOval(playerX + 13, playerY - jumpHeight - 9, 2, 2);
+                g2d.fillOval(playerX + 26, playerY - jumpHeight - 9, 2, 2);
+                
+                // Telinga dengan detail bulu
+                drawDetailedEar(g2d, playerX + 10, playerY - jumpHeight - 25, true);  // Telinga kiri
+                drawDetailedEar(g2d, playerX + 30, playerY - jumpHeight - 25, false); // Telinga kanan
+                
+                // Hidung yang lebih realistis
+                GradientPaint noseGradient = new GradientPaint(
+                    playerX + 18, playerY - jumpHeight - 5,
+                    new Color(255, 120, 150),
+                    playerX + 24, playerY - jumpHeight - 1,
+                    new Color(255, 90, 120)
+                );
+                g2d.setPaint(noseGradient);
+                int[] noseX = {playerX + 20, playerX + 22, playerX + 18};
+                int[] noseY = {playerY - jumpHeight - 5, playerY - jumpHeight - 2, playerY - jumpHeight - 2};
+                g2d.fillPolygon(noseX, noseY, 3);
+                
+                // Mulut kucing
+                g2d.setColor(new Color(0, 0, 0, 100));
+                g2d.setStroke(new BasicStroke(1.0f));
+                g2d.drawArc(playerX + 18, playerY - jumpHeight - 2, 4, 3, 0, -180);
+                
+                // Kumis yang lebih realistis
+                g2d.setStroke(new BasicStroke(1.0f));
+                drawDetailedWhiskers(g2d);
+                
+                // Ekor yang lebih natural dengan efek bulu
+                drawDetailedTail(g2d);
+                
+                // Kaki dengan detail bulu
+                drawDetailedLegs(g2d);
+            }
+        }
+        
+        private void drawDetailedEar(Graphics2D g2d, int x, int y, boolean isLeft) {
+            // Bentuk dasar telinga
+            int[] xPoints = {x, x + (isLeft ? -5 : 5), x + (isLeft ? 5 : -5)};
+            int[] yPoints = {y, y + 15, y + 15};
+            
+            GradientPaint earGradient = new GradientPaint(
+                x, y,
+                new Color(200, 180, 220), // Soft lilac
+                x + (isLeft ? 5 : -5), y + 15,
+                new Color(180, 160, 200)  // Darker lilac
+            );
+            g2d.setPaint(earGradient);
+            g2d.fillPolygon(xPoints, yPoints, 3);
+            
+            // Detail bulu dalam telinga
+            g2d.setColor(new Color(255, 182, 193));
+            int[] innerX = {x, x + (isLeft ? -3 : 3), x + (isLeft ? 3 : -3)};
+            int[] innerY = {y + 2, y + 12, y + 12};
+            g2d.fillPolygon(innerX, innerY, 3);
+            
+            // Garis-garis bulu
+            g2d.setColor(new Color(230, 120, 0, 100));
+            g2d.setStroke(new BasicStroke(0.5f));
+            for(int i = 0; i < 3; i++) {
+                g2d.drawLine(x, y + i*4, x + (isLeft ? -3 : 3), y + i*4 + 3);
+            }
+        }
+        
+        private void drawDetailedWhiskers(Graphics2D g2d) {
+            // Kumis dengan efek gradasi dan lengkungan
+            for(int i = -1; i <= 1; i++) {
+                // Kumis kiri
+                g2d.setColor(new Color(0, 0, 0, 150 - Math.abs(i) * 30));
+                g2d.drawLine(
+                    playerX + 15, 
+                    playerY - jumpHeight - 3 + i*2,
+                    playerX - 5,
+                    playerY - jumpHeight - 1 + i*2
+                );
+                
+                // Kumis kanan
+                g2d.drawLine(
+                    playerX + 25,
+                    playerY - jumpHeight - 3 + i*2,
+                    playerX + 45,
+                    playerY - jumpHeight - 1 + i*2
+                );
+            }
+        }
+        
+        private void drawDetailedTail(Graphics2D g2d) {
+            GradientPaint tailGradient = new GradientPaint(
+                playerX - 20, playerY - jumpHeight,
+                new Color(200, 180, 220), // Soft lilac
+                playerX + 10, playerY - jumpHeight + 40,
+                new Color(180, 160, 200)  // Darker lilac
+            );
+            g2d.setPaint(tailGradient);
+            
+            // Bentuk dasar ekor
+            g2d.setStroke(new BasicStroke(6, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+            g2d.drawArc(playerX - 20, playerY - jumpHeight + 20, 30, 40, 0, 180);
+            
+            // Detail bulu ekor
+            g2d.setStroke(new BasicStroke(0.5f));
+            g2d.setColor(new Color(230, 120, 0, 70));
+            for(int i = 0; i < 8; i++) {
+                g2d.drawLine(
+                    playerX - 15 + i*2, playerY - jumpHeight + 35,
+                    playerX - 17 + i*2, playerY - jumpHeight + 40
+                );
+            }
+        }
+        
+        private void drawDetailedLegs(Graphics2D g2d) {
+            int height = 50; // Definisikan tinggi player
+            GradientPaint legGradient = new GradientPaint(
+                playerX, playerY - jumpHeight + height - 10,
+                new Color(200, 180, 220), // Soft lilac
+                playerX, playerY - jumpHeight + height + 10,
+                new Color(180, 160, 200)  // Darker lilac
+            );
+            g2d.setPaint(legGradient);
+            g2d.setStroke(new BasicStroke(4, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+            
+            // Kaki dengan bentuk yang lebih natural
+            int[][] legPositions = {
+                {10, -5, 5, 10},  // Kaki depan kiri
+                {30, -5, 35, 10}, // Kaki depan kanan
+                {15, -5, 10, 10}, // Kaki belakang kiri
+                {25, -5, 30, 10}  // Kaki belakang kanan
+            };
+            
+            for(int[] leg : legPositions) {
+                // Bentuk dasar kaki
+                g2d.drawLine(
+                    playerX + leg[0],
+                    playerY - jumpHeight + height + leg[1],
+                    playerX + leg[2],
+                    playerY - jumpHeight + height + leg[3]
+                );
+                
+                // Detail bulu pada kaki
+                g2d.setStroke(new BasicStroke(0.5f));
+                g2d.setColor(new Color(230, 120, 0, 70));
+                for(int i = 0; i < 3; i++) {
+                    g2d.drawLine(
+                        playerX + leg[0] + i,
+                        playerY - jumpHeight + height + leg[1] + i*2,
+                        playerX + leg[0] + i - 2,
+                        playerY - jumpHeight + height + leg[1] + i*2 + 2
+                    );
+                }
+            }
+            
+            // Telapak kaki yang lebih detail
+            g2d.setColor(new Color(255, 120, 80));
+            int[] pawPositions = {3, 33, 8, 28};
+            for(int x : pawPositions) {
+                g2d.fillOval(playerX + x, playerY - jumpHeight + height + 8, 5, 4);
+                // Bantalan kaki
+                g2d.setColor(new Color(255, 100, 60));
+                g2d.fillOval(playerX + x + 1, playerY - jumpHeight + height + 9, 3, 2);
+            }
+        }
+        
+        // Metode helper untuk menggambar kumis dengan efek gradien
+        private void drawWhisker(Graphics2D g2d, int x1, int y1, int x2, int y2) {
+            GradientPaint whiskerGradient = new GradientPaint(
+                x1, y1, new Color(0, 0, 0),
+                x2, y2, new Color(0, 0, 0, 50)
+            );
+            g2d.setPaint(whiskerGradient);
+            g2d.drawLine(x1, y1, x2, y2);
+        }
+    
+        // Tambahkan variabel untuk mengontrol kecepatan
+        private int baseSpeed = 5;
+        private int currentSpeed = baseSpeed;
+        private int speedIncreaseInterval = 1000; // Interval untuk menambah kecepatan (dalam milidetik)
+        private long lastSpeedIncrease = System.currentTimeMillis();
+    
+        @Override
+        public void actionPerformed(ActionEvent e) {
+            if (!isGameOver) {
+                // Update kecepatan berdasarkan waktu
+                long currentTime = System.currentTimeMillis();
+                if (currentTime - lastSpeedIncrease > speedIncreaseInterval) {
+                    currentSpeed = baseSpeed + (score / 5); // Kecepatan bertambah lebih cepat
+                    lastSpeedIncrease = currentTime;
+                }
+                
+                // Update posisi background dengan kecepatan yang meningkat
+                backgroundOffset += currentSpeed;
+                
+                // Hapus auto-jumping code
+                
+                // Logika lompatan dengan physics yang lebih halus
+                if (isJumping) {
+                    jumpHeight += 8;  // Increased jump speed
+                    if (jumpHeight >= 150) {  // Higher jump
+                        isJumping = false;
+                    }
+                } else if (jumpHeight > 0) {
+                    jumpHeight -= 6;  // Smoother landing
+                }
+                
+                // Gerakkan rintangan
+                for (int i = obstacles.size() - 1; i >= 0; i--) {
+                    Obstacle obs = obstacles.get(i);
+                    obs.y += currentSpeed;  // Gunakan currentSpeed yang baru
+                    
+                    // Collision detection yang lebih akurat
+                    if (obs.y >= playerY - 30 && obs.y <= playerY + 30 &&
+                        obs.lane == playerLane) {
+                        // Game over hanya jika benar-benar menabrak obstacle
+                        if (jumpHeight < 50 && obs.y >= playerY - 10) {
+                            handleGameOver();
+                        }
+                    }
+                    
+                    // Hapus rintangan yang sudah lewat
+                    if (obs.y > getHeight()) {
+                        obstacles.remove(i);
+                        score++;
+                    }
+                }
+                
+                // Tambah rintangan baru dengan posisi yang dibatasi
+                if (random.nextInt(50) == 0) {
+                    int trackWidth = 300;
+                    int startX = (getWidth() - trackWidth) / 2;
+                    Obstacle obs = new Obstacle(random.nextInt(3));
+                    // Pastikan posisi x rintangan berada dalam jalur
+                    obs.x = startX + (obs.lane * (trackWidth/3)) + 5;
+                    obstacles.add(obs);
+                }
+            }
+            repaint();
+        }
+    
+        @Override
+        public void keyPressed(KeyEvent e) {
+            if (!isGameOver) {
+                if (e.getKeyCode() == KeyEvent.VK_LEFT && playerLane > 0) {
+                    playerLane--;
+                    int trackWidth = 300;
+                    int startX = (getWidth() - trackWidth) / 2;
+                    playerX = startX + (playerLane * (trackWidth/3)) + 5;
+                } else if (e.getKeyCode() == KeyEvent.VK_RIGHT && playerLane < 2) {
+                    playerLane++;
+                    int trackWidth = 300;
+                    int startX = (getWidth() - trackWidth) / 2;
+                    playerX = startX + (playerLane * (trackWidth/3)) + 5;
+                } else if (e.getKeyCode() == KeyEvent.VK_SPACE && !isJumping) {
+                    isJumping = true;
+                    jumpHeight = 0;
+                }
+            } else if (e.getKeyCode() == KeyEvent.VK_SPACE) {
+                // Reset game
+                backButton.setVisible(false);
+                isGameOver = false;
+                score = 0;
+                obstacles.clear();
+                playerLane = 1;
+                int trackWidth = 300;
+                int startX = (getWidth() - trackWidth) / 2;
+                playerX = startX + (playerLane * (trackWidth/3)) + 5;
+            }
+        }
+    
+        @Override
+        public void keyTyped(KeyEvent e) {}
+    
+        @Override
+        public void keyReleased(KeyEvent e) {}
+    
+        private void drawGameOver(Graphics2D g2d) {
+            // Set font untuk text game over
+            g2d.setFont(new Font("Arial", Font.BOLD, 48));
+            FontMetrics metrics = g2d.getFontMetrics();
+            
+            // Gambar text "GAME OVER" dengan efek bayangan
+            String gameOverText = "GAME OVER";
+            int gameOverX = (getWidth() - metrics.stringWidth(gameOverText)) / 2;
+            int gameOverY = getHeight() / 2 - 40;
+            
+            // Bayangan
+            g2d.setColor(new Color(0, 0, 0, 100));
+            g2d.drawString(gameOverText, gameOverX + 3, gameOverY + 3);
+            
+            // Text utama dengan warna merah
+            g2d.setColor(Color.RED);
+            g2d.drawString(gameOverText, gameOverX, gameOverY);
+            
+            // Set font untuk skor
+            g2d.setFont(new Font("Arial", Font.BOLD, 24));
+            metrics = g2d.getFontMetrics();
+            
+            // Gambar text skor
+            String scoreText = "Skor Akhir: " + score;
+            int scoreX = (getWidth() - metrics.stringWidth(scoreText)) / 2;
+            int scoreY = gameOverY + 50;
+            
+            // Bayangan untuk skor
+            g2d.setColor(new Color(0, 0, 0, 100));
+            g2d.drawString(scoreText, scoreX + 2, scoreY + 2);
+            
+            // Text skor utama
+            g2d.setColor(Color.WHITE);
+            g2d.drawString(scoreText, scoreX, scoreY);
+            
+            // Atur posisi tombol-tombol
+            // Update button positions
+            playAgainButton.setBounds(getWidth()/2 - 160, scoreY + 30, 100, 30);
+            exitButton.setBounds(getWidth()/2 + 60, scoreY + 30, 100, 30);
+            exitToMainButton.setBounds(getWidth()/2 - 60, scoreY + 70, 120, 30);
+            
+            // Show buttons
+            playAgainButton.setVisible(true);
+            exitButton.setVisible(true);
+            exitToMainButton.setVisible(true);
+            
+            // Enable buttons
+            playAgainButton.setEnabled(true);
+            exitButton.setEnabled(true);
+            exitToMainButton.setEnabled(true);
+        }
+    
+        // Replace the main method with this method
+        public static void startGame(JFrame parentFrame) {
+            parentFrame.getContentPane().removeAll();
+            SubwayGame game = new SubwayGame(parentFrame);
+            parentFrame.add(game);
+            parentFrame.pack();
+            parentFrame.setLocationRelativeTo(null);
+            game.requestFocusInWindow();
+            parentFrame.revalidate();
+            parentFrame.repaint();
+        }
+    
+        private void drawStar(Graphics2D g2d, int x, int y, int size) {
+            // Gambar bintang sederhana
+            g2d.drawLine(x - size, y, x + size, y);  // Horizontal
+            g2d.drawLine(x, y - size, x, y + size);  // Vertikal
+            g2d.drawLine(x - size/2, y - size/2, x + size/2, y + size/2);  // Diagonal 1
+            g2d.drawLine(x - size/2, y + size/2, x + size/2, y - size/2);  // Diagonal 2
+            
+            // Add sparkle effect
+            g2d.setColor(new Color(255, 255, 0, 100));
+            g2d.fillOval(x - size/4, y - size/4, size/2, size/2);
+        }
+    }

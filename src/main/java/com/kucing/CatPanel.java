@@ -31,19 +31,57 @@ public class CatPanel extends JPanel {
     private Timer animationTimer;
     private int sleepZCount = 0;
 
+    // Blinking animation states
+    private boolean isBlinking = false;
+    private int blinkDuration = 0;
+    private Timer blinkTimer;
+    
+    // Add new field for tail animation
+    private double tailAngle = 0;
+    private boolean tailWagging = true;
+
+    // Update the blinkTimer initialization in the constructor
     public CatPanel() {
         setPreferredSize(new Dimension(300, 300));
         animationTimer = new Timer(200, e -> {
             animationFrame = (animationFrame + 1) % 4;
             if (isEating && animationFrame == 0) {
                 isEating = false;
-                animationTimer.stop(); // Stop timer when eating animation complete
+                animationTimer.stop();
             }
             if (isSleeping) {
                 sleepZCount = animationFrame;
             }
+            // Add tail animation
+            if (tailWagging && !isSleeping) {
+                tailAngle += 0.2;
+                if (tailAngle > Math.PI/6) {
+                    tailWagging = false;
+                }
+            } else if (!isSleeping) {
+                tailAngle -= 0.2;
+                if (tailAngle < -Math.PI/6) {
+                    tailWagging = true;
+                }
+            }
             repaint();
         });
+        animationTimer.start(); // Start the animation timer immediately
+
+        // Initialize and start blink timer
+        // Update blink timer to 2 seconds with fixed blinking
+        blinkTimer = new Timer(2000, e -> {
+            if (!isSleeping) {
+                isBlinking = true;
+                new Timer(150, ev -> {
+                    isBlinking = false;
+                    ((Timer)ev.getSource()).stop();
+                    repaint();
+                }).start();
+                repaint();
+            }
+        });
+        blinkTimer.start();
     }
 
     public void startEating() {
@@ -71,29 +109,27 @@ public class CatPanel extends JPanel {
         Graphics2D g2d = (Graphics2D) g;
         g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 
-        // Hitung posisi tengah panel
+        // Draw full background first
+        drawBackground(g2d);
+
+        // Calculate center position
         int panelWidth = getWidth();
         int panelHeight = getHeight();
         int centerX = panelWidth / 2;
         int centerY = panelHeight / 2;
         
-        // Offset untuk menggeser semua elemen ke tengah
-        int xOffset = centerX - 150; // 300/2 = 150 (setengah dari lebar background)
-        int yOffset = centerY - 150; // 300/2 = 150 (setengah dari tinggi background)
+        // Translate for game elements
+        g2d.translate(centerX - 150, centerY - 150);
         
-        // Translate graphics context
-        g2d.translate(xOffset, yOffset);
-        
-        drawBackground(g2d);
         drawCatBed(g2d);
         drawBasicCat(g2d);
         
-        // Reset translation sebelum menggambar stats
-        g2d.translate(-xOffset, -yOffset);
+        // Reset translation for stats
+        g2d.translate(-(centerX - 150), -(centerY - 150));
         drawStats(g2d);
 
-        // Translate kembali untuk animasi
-        g2d.translate(xOffset, yOffset);
+        // Translate back for animations
+        g2d.translate(centerX - 150, centerY - 150);
         if (isEating) {
             drawEatingAnimation(g2d);
         } else if (isSleeping) {
@@ -102,8 +138,30 @@ public class CatPanel extends JPanel {
             drawMood(g2d);
         }
         
-        // Reset translation
-        g2d.translate(-xOffset, -yOffset);
+        // Add darkness overlay when sleeping
+        if (isSleeping) {
+            g2d.translate(-(centerX - 150), -(centerY - 150));
+            g2d.setColor(new Color(0, 0, 0, 180));
+            g2d.fillRect(0, 0, panelWidth, panelHeight);
+            
+            // Add moonlight effect
+            RadialGradientPaint moonlight = new RadialGradientPaint(
+                new Point(panelWidth - 100, 100),
+                200f,
+                new float[]{0.0f, 0.5f, 1.0f},
+                new Color[]{
+                    new Color(255, 255, 255, 15),
+                    new Color(200, 200, 255, 10),
+                    new Color(0, 0, 0, 0)
+                }
+            );
+            g2d.setPaint(moonlight);
+            g2d.fillOval(panelWidth - 300, -100, 400, 400);
+            g2d.translate(centerX - 150, centerY - 150);
+        }
+        
+        // Final reset translation
+        g2d.translate(-(centerX - 150), -(centerY - 150));
     }
     
     private void drawStats(Graphics2D g2d) {
@@ -130,21 +188,63 @@ public class CatPanel extends JPanel {
     }
 
     private void drawBackground(Graphics2D g2d) {
-        // Background utama
-        g2d.setColor(SOFT_PURPLE);
-        g2d.fillRect(0, 0, 300, 300);
+        int width = getWidth();
+        int height = getHeight();
+
+        // Gradient background
+        GradientPaint gradient = new GradientPaint(
+            0, 0, new Color(255, 248, 220),
+            0, height, new Color(255, 235, 205)
+        );
+        g2d.setPaint(gradient);
+        g2d.fillRect(0, 0, width, height);
         
-        // Pola dekoratif
-        g2d.setColor(new Color(LIGHT_PURPLE.getRed(), 
-                              LIGHT_PURPLE.getGreen(), 
-                              LIGHT_PURPLE.getBlue(), 50));
-        
-        // Gambar pola geometris halus
-        for (int i = 0; i < 6; i++) {
-            for (int j = 0; j < 6; j++) {
-                g2d.fillOval(i * 50, j * 50, 30, 30);
+        // Wallpaper pattern scaled to screen
+        g2d.setColor(new Color(139, 69, 19, 30));
+        int patternSize = Math.min(width, height) / 8;
+        for (int i = 0; i < width; i += patternSize) {
+            for (int j = 0; j < height; j += patternSize) {
+                g2d.drawRect(i, j, patternSize, patternSize);
+                g2d.drawLine(i, j, i + patternSize, j + patternSize);
             }
         }
+
+        // Furniture scaled to screen size
+        int sofaWidth = width / 3;
+        int sofaHeight = height / 8;
+        int sofaY = height - (height / 4);
+        
+        // Draw sofa
+        g2d.setColor(new Color(101, 67, 33, 40));
+        g2d.fillRoundRect(width/3, sofaY, sofaWidth, sofaHeight, 20, 20);
+        g2d.fillRoundRect(width/3 + 10, sofaY - 20, sofaWidth - 20, sofaHeight/2, 10, 10);
+        
+        // Side table
+        int tableWidth = width / 10;
+        g2d.fillRect(width - tableWidth - 20, sofaY - 20, tableWidth, height/6);
+        
+        // Lamp with dynamic positioning
+        int lampSize = width / 20;
+        g2d.setColor(new Color(255, 223, 186, 60));
+        g2d.fillOval(width - tableWidth - lampSize/2, sofaY - height/4, lampSize, lampSize);
+        
+        // Lamp stand
+        g2d.setColor(new Color(101, 67, 33, 40));
+        g2d.fillRect(width - tableWidth - lampSize/3, sofaY - height/6, lampSize/4, height/12);
+        
+        // Enhanced lamp glow
+        RadialGradientPaint lampGlow = new RadialGradientPaint(
+            new Point(width - tableWidth - lampSize/2, sofaY - height/4),
+            width/6f,
+            new float[]{0.0f, 0.5f, 1.0f},
+            new Color[]{
+                new Color(255, 255, 200, 40),
+                new Color(255, 255, 200, 20),
+                new Color(255, 255, 200, 0)
+            }
+        );
+        g2d.setPaint(lampGlow);
+        g2d.fillOval(width - width/3, sofaY - height/3, width/3, height/3);
     }
 
     private void drawCatBed(Graphics2D g2d) {
@@ -163,9 +263,104 @@ public class CatPanel extends JPanel {
         for(int i = 0; i < 3; i++) {
             g2d.drawArc(110 + (i * 30), 210, 20, 20, 0, 180);
         }
+
+        // Add bedside lamp
+        // Lamp base
+        g2d.setColor(new Color(101, 67, 33));
+        g2d.fillRect(220, 190, 15, 30);
+        
+        // Lamp neck (adjustable part)
+        g2d.setColor(new Color(180, 180, 180));
+        int[] xPoints = {227, 230, 233, 230};
+        int[] yPoints = {190, 160, 163, 193};
+        g2d.fillPolygon(xPoints, yPoints, 4);
+        
+        // Lamp shade
+        g2d.setColor(new Color(255, 223, 186));
+        g2d.fillOval(215, 145, 30, 20);
+        g2d.setColor(new Color(101, 67, 33));
+        g2d.drawOval(215, 145, 30, 20);
+        
+        // Enhanced bedside lamp
+        // Larger lamp base
+        g2d.setColor(new Color(101, 67, 33));
+        g2d.fillRoundRect(250, 180, 25, 40, 8, 8);
+        g2d.setColor(new Color(139, 69, 19));
+        g2d.fillRoundRect(245, 210, 35, 10, 5, 5);
+        
+        // Improved adjustable neck
+        g2d.setColor(new Color(192, 192, 192));
+        int[] neckX = {262, 265, 268, 265, 262, 259};
+        int[] neckY = {180, 150, 152, 155, 153, 182};
+        g2d.fillPolygon(neckX, neckY, 6);
+        
+        // Larger, more detailed lamp shade
+        g2d.setColor(new Color(255, 223, 186));
+        g2d.fillOval(240, 125, 50, 35);
+        g2d.setColor(new Color(139, 69, 19));
+        g2d.drawOval(240, 125, 50, 35);
+        
+        // Decorative pattern on shade
+        g2d.setColor(new Color(139, 69, 19, 60));
+        for (int i = 0; i < 4; i++) {
+            g2d.drawLine(245 + (i * 12), 125, 245 + (i * 12), 160);
+        }
+        
+        // Enhanced lamp glow effect
+        if (!isSleeping) {
+            RadialGradientPaint lampGlow = new RadialGradientPaint(
+                new Point(265, 142),
+                120f,
+                new float[]{0.0f, 0.3f, 0.7f, 1.0f},
+                new Color[]{
+                    new Color(255, 255, 200, 50),
+                    new Color(255, 255, 200, 35),
+                    new Color(255, 255, 200, 20),
+                    new Color(255, 255, 200, 0)
+                }
+            );
+            g2d.setPaint(lampGlow);
+            g2d.fillOval(205, 82, 120, 120);
+        }
     }
 
+    // Add breathing animation states
+    private double breathingScale = 1.0;
+    private boolean breathingIn = true;
+    private Timer breathingTimer;
+
+    public void updateBreathing() {
+        if (breathingTimer == null) {
+            breathingTimer = new Timer(50, e -> {
+                if (!isEating && !isSleeping) {
+                    if (breathingIn) {
+                        breathingScale += 0.003;
+                        if (breathingScale >= 1.03) {
+                            breathingIn = false;
+                        }
+                    } else {
+                        breathingScale -= 0.003;
+                        if (breathingScale <= 1.0) {
+                            breathingIn = true;
+                        }
+                    }
+                    repaint();
+                }
+            });
+            breathingTimer.start();
+        }
+    }
+
+    // Modify drawBasicCat to include breathing animation
     private void drawBasicCat(Graphics2D g2d) {
+        // Save the current transform
+        AffineTransform oldTransform = g2d.getTransform();
+        
+        // Apply breathing scale
+        g2d.translate(150, 150);
+        g2d.scale(breathingScale, breathingScale);
+        g2d.translate(-150, -150);
+        
         // Body yang lebih ramping dan elegan untuk Anggora
         g2d.setColor(catColor);
         g2d.fillOval(95, 95, 110, 115); // Mengurangi lebar dan menyesuaikan tinggi
@@ -407,5 +602,10 @@ public class CatPanel extends JPanel {
     public void setMood(int mood) {
         this.mood = mood;
         repaint();
+    }
+
+    public void updateBlinking() {
+        // TODO Auto-generated method stub
+        throw new UnsupportedOperationException("Unimplemented method 'updateBlinking'");
     }
 }

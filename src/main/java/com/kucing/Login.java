@@ -19,8 +19,21 @@ public class Login extends JFrame {
     public Login() {
         setTitle("Virtual Cat - Login");
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        setSize(400, 300);
+        setSize(400, 350);  // Changed from 300 to 350
         setLocationRelativeTo(null);
+        
+        // Add FICT logo at bottom
+        JLabel fictLabel = new JLabel();
+        try {
+            ImageIcon fictIcon = new ImageIcon("c:\\Java\\javacat\\src\\main\\resources\\fict.png");
+            Image fictImage = fictIcon.getImage();
+            Image scaledFict = fictImage.getScaledInstance(100, 47, Image.SCALE_SMOOTH);
+            fictLabel = new JLabel(new ImageIcon(scaledFict));
+            fictLabel.setBounds(12, 255, 100, 47);  // Adjusted Y position to 255
+            add(fictLabel);
+        } catch (Exception e) {
+            System.out.println("Error loading FICT logo: " + e.getMessage());
+        }
         
         // Set warna background frame
         getContentPane().setBackground(SOFT_PURPLE);
@@ -74,6 +87,17 @@ public class Login extends JFrame {
         // Styling buttons
         styleButton(loginButton);
         styleButton(goToRegisterButton);
+        goToRegisterButton.setBackground(new Color(169, 169, 169)); // Changed to gray
+        
+        // Add hover effect specifically for register button
+        goToRegisterButton.addMouseListener(new java.awt.event.MouseAdapter() {
+            public void mouseEntered(java.awt.event.MouseEvent evt) {
+                goToRegisterButton.setBackground(new Color(128, 128, 128));
+            }
+            public void mouseExited(java.awt.event.MouseEvent evt) {
+                goToRegisterButton.setBackground(new Color(169, 169, 169));
+            }
+        });
         
         loginButton.addActionListener(e -> handleLogin());
         goToRegisterButton.addActionListener(e -> {
@@ -90,6 +114,23 @@ public class Login extends JFrame {
         gbc.anchor = GridBagConstraints.CENTER;
         gbc.insets = new Insets(30, 10, 10, 10);
         panel.add(buttonPanel, gbc);
+        
+        // Add official logo below buttons
+        try {
+            ImageIcon logoIcon = new ImageIcon("c:\\Java\\javacat\\src\\main\\resources\\logo_resmi.jpg");
+            Image logoImage = logoIcon.getImage();
+            Image scaledLogo = logoImage.getScaledInstance(250, 150, Image.SCALE_SMOOTH);
+            JLabel logoLabel = new JLabel(new ImageIcon(scaledLogo));
+            
+            gbc.gridx = 0;
+            gbc.gridy = 4;
+            gbc.gridwidth = 2;
+            gbc.anchor = GridBagConstraints.CENTER;
+            gbc.insets = new Insets(20, 10, 10, 10);
+            panel.add(logoLabel, gbc);
+        } catch (Exception e) {
+            System.out.println("Error loading logo: " + e.getMessage());
+        }
         
         add(panel);
     }
@@ -118,17 +159,25 @@ public class Login extends JFrame {
         String password = new String(passwordField.getPassword());
         
         try (Connection conn = DatabaseConnection.getConnection()) {
-            String query = "SELECT * FROM users WHERE username = ? AND password = ?";
+            // First get the stored hashed password for the username
+            String query = "SELECT * FROM users WHERE username = ?";
             PreparedStatement pstmt = conn.prepareStatement(query);
             pstmt.setString(1, username);
-            pstmt.setString(2, password);
             
             ResultSet rs = pstmt.executeQuery();
             if (rs.next()) {
-                JOptionPane.showMessageDialog(this, "Login successful!");
-                dispose();
-                new MainGame().setVisible(true);
-                LoginManager.setCurrentUsername(username);
+                // Hash the input password and compare with stored hash
+                String hashedInputPassword = hashPassword(password);
+                String storedHash = rs.getString("password");
+                
+                if (hashedInputPassword.equals(storedHash)) {
+                    JOptionPane.showMessageDialog(this, "Login successful!");
+                    dispose();
+                    new MainGame().setVisible(true);
+                    LoginManager.setCurrentUsername(username);
+                } else {
+                    JOptionPane.showMessageDialog(this, "Invalid username or password!");
+                }
             } else {
                 JOptionPane.showMessageDialog(this, "Invalid username or password!");
             }
@@ -137,6 +186,24 @@ public class Login extends JFrame {
         }
     }
     
+    // Add the same hash method as in Register class
+    private String hashPassword(String password) {
+        try {
+            java.security.MessageDigest md = java.security.MessageDigest.getInstance("SHA-256");
+            byte[] hash = md.digest(password.getBytes("UTF-8"));
+            StringBuilder hexString = new StringBuilder();
+            
+            for (byte b : hash) {
+                String hex = Integer.toHexString(0xff & b);
+                if (hex.length() == 1) hexString.append('0');
+                hexString.append(hex);
+            }
+            
+            return hexString.toString();
+        } catch (Exception e) {
+            throw new RuntimeException("Error hashing password", e);
+        }
+    }
     public static void main(String[] args) {
         SwingUtilities.invokeLater(() -> {
             // Create and show splash screen
@@ -160,7 +227,7 @@ public class Login extends JFrame {
             
             // Load and display logo
             try {
-                ImageIcon logoIcon = new ImageIcon("c:\\Java\\kucing(update 30 april)\\src\\main\\resources\\logo.png");
+                ImageIcon logoIcon = new ImageIcon("c:\\Java\\javacat\\src\\main\\resources\\logo.png");
                 Image logoImage = logoIcon.getImage();
                 if (logoImage != null) {
                     logoImage = logoImage.getScaledInstance(200, 200, Image.SCALE_SMOOTH);
@@ -169,10 +236,10 @@ public class Login extends JFrame {
                     splashPanel.add(logoLabel, BorderLayout.CENTER);
                     
                     // Add loading text below logo
-                    JLabel loadingLabel = new JLabel("Loading...");
+                    JLabel loadingLabel = new JLabel("\u00A9 Horizon University Indonesia");
                     loadingLabel.setForeground(WHITE);
                     loadingLabel.setHorizontalAlignment(JLabel.CENTER);
-                    loadingLabel.setFont(new Font("Arial", Font.BOLD, 16));
+                    loadingLabel.setFont(new Font("Arial", Font.BOLD, 12));
                     splashPanel.add(loadingLabel, BorderLayout.SOUTH);
                 } else {
                     System.out.println("Failed to load logo image");

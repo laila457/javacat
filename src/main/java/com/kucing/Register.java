@@ -19,8 +19,21 @@ public class Register extends JFrame {
     public Register() {
         setTitle("Virtual Cat - Register");
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        setSize(400, 300);
+        setSize(400, 350);  // Changed height from 300 to 350
         setLocationRelativeTo(null);
+        
+        // Add FICT logo at bottom
+        JLabel fictLabel = new JLabel();
+        try {
+            ImageIcon fictIcon = new ImageIcon("c:\\Java\\javacat\\src\\main\\resources\\fict.png");
+            Image fictImage = fictIcon.getImage();
+            Image scaledFict = fictImage.getScaledInstance(100, 50, Image.SCALE_SMOOTH);
+            fictLabel = new JLabel(new ImageIcon(scaledFict));
+            fictLabel.setBounds(12, 255, 100, 50);  // Adjusted Y position to 255
+            add(fictLabel);
+        } catch (Exception e) {
+            System.out.println("Error loading FICT logo: " + e.getMessage());
+        }
         
         // Set warna background frame
         getContentPane().setBackground(SOFT_PURPLE);
@@ -74,6 +87,17 @@ public class Register extends JFrame {
         // Styling buttons
         styleButton(registerButton);
         styleButton(goToLoginButton);
+        goToLoginButton.setBackground(new Color(169, 169, 169)); // Changed to gray
+        
+        // Add hover effect specifically for back to login button
+        goToLoginButton.addMouseListener(new java.awt.event.MouseAdapter() {
+            public void mouseEntered(java.awt.event.MouseEvent evt) {
+                goToLoginButton.setBackground(new Color(128, 128, 128));
+            }
+            public void mouseExited(java.awt.event.MouseEvent evt) {
+                goToLoginButton.setBackground(new Color(169, 169, 169));
+            }
+        });
         
         registerButton.addActionListener(e -> handleRegister());
         goToLoginButton.addActionListener(e -> {
@@ -88,7 +112,7 @@ public class Register extends JFrame {
         gbc.gridx = 0; gbc.gridy = 3;
         gbc.gridwidth = 2;
         gbc.anchor = GridBagConstraints.CENTER;
-        gbc.insets = new Insets(30, 10, 10, 10);
+        gbc.insets = new Insets(30, 10, 40, 10);  // Changed bottom inset from 10 to 40
         panel.add(buttonPanel, gbc);
         
         add(panel);
@@ -117,26 +141,65 @@ public class Register extends JFrame {
         String username = usernameField.getText();
         String password = new String(passwordField.getPassword());
         
-        // Validasi input
+        // Enhanced input validation
         if (username.trim().isEmpty() || password.trim().isEmpty()) {
             JOptionPane.showMessageDialog(this, "Username dan Password tidak boleh kosong!");
             return;
         }
+
+        // Password length validation
+        if (password.length() < 6) {
+            JOptionPane.showMessageDialog(this, "Password harus minimal 6 karakter!");
+            return;
+        }
         
         try (Connection conn = DatabaseConnection.getConnection()) {
-            String query = "INSERT INTO users (username, password) VALUES (?, ?)";
-            PreparedStatement pstmt = conn.prepareStatement(query);
+            // Check if username exists
+            String checkQuery = "SELECT username FROM users WHERE username = ?";
+            PreparedStatement checkStmt = conn.prepareStatement(checkQuery);
+            checkStmt.setString(1, username);
+            ResultSet rs = checkStmt.executeQuery();
+            
+            if (rs.next()) {
+                JOptionPane.showMessageDialog(this, "Username sudah digunakan!");
+                return;
+            }
+            
+            // Hash the password using SHA-256
+            String hashedPassword = hashPassword(password);
+            
+            // Insert new user with hashed password
+            String insertQuery = "INSERT INTO users (username, password, created_at) VALUES (?, ?, NOW())";
+            PreparedStatement pstmt = conn.prepareStatement(insertQuery);
             pstmt.setString(1, username);
-            pstmt.setString(2, password);
+            pstmt.setString(2, hashedPassword);
             
             pstmt.executeUpdate();
             JOptionPane.showMessageDialog(this, "Registrasi berhasil!");
             dispose();
             new Login().setVisible(true);
-        } catch (SQLIntegrityConstraintViolationException e) {
-            JOptionPane.showMessageDialog(this, "Username sudah digunakan!");
+            
         } catch (Exception e) {
             JOptionPane.showMessageDialog(this, "Database error: " + e.getMessage());
+        }
+    }
+    
+    // Add this new method for password hashing
+    private String hashPassword(String password) {
+        try {
+            java.security.MessageDigest md = java.security.MessageDigest.getInstance("SHA-256");
+            byte[] hash = md.digest(password.getBytes("UTF-8"));
+            StringBuilder hexString = new StringBuilder();
+            
+            for (byte b : hash) {
+                String hex = Integer.toHexString(0xff & b);
+                if (hex.length() == 1) hexString.append('0');
+                hexString.append(hex);
+            }
+            
+            return hexString.toString();
+        } catch (Exception e) {
+            throw new RuntimeException("Error hashing password", e);
         }
     }
 }

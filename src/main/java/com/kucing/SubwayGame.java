@@ -18,14 +18,17 @@ public class SubwayGame extends JPanel implements ActionListener, KeyListener {
         int x, y, lane;
         int jumpOffset = 0;
         boolean isJumping = false;
+        boolean isBone = false;  // New field to determine if obstacle is a bone
         
         Obstacle(int lane) {
             this.lane = lane;
             this.y = -50;
             this.x = 200 + (lane * 100);
-            this.isJumping = Math.random() < 0.3; // 30% chance to jump
+            this.isJumping = Math.random() < 0.3;
+            this.isBone = Math.random() < 0.4; // 40% chance to be a bone
         }
     }
+
     private int playerX = 300;
     private int playerY = 400;
     private int playerLane = 1; // 0=kiri, 1=tengah, 2=kanan
@@ -185,8 +188,8 @@ public class SubwayGame extends JPanel implements ActionListener, KeyListener {
         }
         
         // Update color scheme
-        private static final Color SKY_TOP = new Color(142, 68, 173);    // Purple top
-        private static final Color SKY_BOTTOM = new Color(155, 89, 182); // Lighter purple bottom
+        private static final Color SKY_TOP = new Color(100, 149, 237);    // Cornflower blue
+        private static final Color SKY_BOTTOM = new Color(135, 206, 235); // Sky blue
         private static final Color TRACK_COLOR = new Color(103, 58, 183);
         private static final Color TRACK_LINES = new Color(255, 255, 255, 180);
         
@@ -194,7 +197,7 @@ public class SubwayGame extends JPanel implements ActionListener, KeyListener {
             int trackWidth = 300;
             int startX = (getWidth() - trackWidth) / 2;
             
-            // Draw fancy background with stars
+            // Draw background with stars
             GradientPaint skyGradient = new GradientPaint(
                 0, 0, SKY_TOP,
                 0, getHeight(), SKY_BOTTOM
@@ -213,105 +216,108 @@ public class SubwayGame extends JPanel implements ActionListener, KeyListener {
                 g2d.fillOval(x, y, size, size);
             }
             
-            // Draw track with 3D effect
-            GradientPaint trackGradient = new GradientPaint(
-                startX, 0, TRACK_COLOR,
-                startX + trackWidth, 0, new Color(TRACK_COLOR.getRed(), 
-                TRACK_COLOR.getGreen(), TRACK_COLOR.getBlue(), 150)
-            );
-            g2d.setPaint(trackGradient);
+            // Draw straight track
+            g2d.setColor(TRACK_COLOR);
+            g2d.fillRect(startX, 0, trackWidth, getHeight());
             
-            // Main track with perspective
-            int[] xPoints = {startX - 20, startX + trackWidth + 20, 
-                            startX + trackWidth/2 + 100, startX + trackWidth/2 - 100};
-            int[] yPoints = {getHeight(), getHeight(), 0, 0};
-            g2d.fillPolygon(xPoints, yPoints, 4);
-            
-            // Track lines with perspective effect
+            // Draw lane lines
             g2d.setColor(TRACK_LINES);
+            // Left lane divider
+            int laneWidth = trackWidth / 3;
             for(int y = backgroundOffset % 40; y < getHeight(); y += 40) {
-                double perspective = 1 - (y / (double)getHeight());
-                int lineWidth = (int)(10 * (1 - perspective * 0.5));
-                
-                for(int lane = 0; lane < 3; lane++) {
-                    int laneX = startX + (lane * (trackWidth/3));
-                    int adjustedX = (int)(laneX + (perspective * 50));
-                    g2d.fillRect(adjustedX + (trackWidth/6) - lineWidth/2, 
-                                y, lineWidth, 20);
-                }
+                g2d.fillRect(startX + laneWidth - 2, y, 4, 20);
+                g2d.fillRect(startX + laneWidth * 2 - 2, y, 4, 20);
             }
             
-            // Add side barriers with glow effect
-            GradientPaint barrierGlow = new GradientPaint(
-                0, 0, new Color(255, 255, 255, 100),
-                0, getHeight(), new Color(255, 255, 255, 30)
-            );
-            g2d.setPaint(barrierGlow);
-            g2d.fillRect(startX - 25, 0, 5, getHeight());
-            g2d.fillRect(startX + trackWidth + 20, 0, 5, getHeight());
+            // Add side barriers
+            g2d.setColor(new Color(255, 255, 255, 100));
+            g2d.fillRect(startX - 5, 0, 5, getHeight());
+            g2d.fillRect(startX + trackWidth, 0, 5, getHeight());
         }
 
         private void drawObstacles(Graphics2D g2d) {
             for (Obstacle obs : obstacles) {
-                // Efek bayangan yang lebih realistis dengan gradasi
-                g2d.setColor(new Color(0, 0, 0, 30));
-                g2d.fillOval(obs.x - 8, obs.y + 35, 46, 15);
-                
-                // Badan tempat sampah dengan efek 3D
-                GradientPaint binBodyGradient = new GradientPaint(
-                    obs.x, obs.y, new Color(120, 120, 120),
-                    obs.x + 30, obs.y, new Color(80, 80, 80)
-                );
-                g2d.setPaint(binBodyGradient);
-                g2d.fillRect(obs.x, obs.y, 30, 40);
-                
-                // Efek highlight pada badan
-                g2d.setColor(new Color(140, 140, 140, 100));
-                g2d.fillRect(obs.x + 2, obs.y + 2, 5, 36);
-                
-                // Tutup tempat sampah dengan efek 3D
-                GradientPaint lidGradient = new GradientPaint(
-                    obs.x - 5, obs.y - 5, new Color(100, 100, 100),
-                    obs.x + 35, obs.y - 5, new Color(60, 60, 60)
-                );
-                g2d.setPaint(lidGradient);
-                g2d.fillRect(obs.x - 5, obs.y - 5, 40, 10);
-                
-                // Efek highlight pada tutup
-                g2d.setColor(new Color(130, 130, 130, 80));
-                g2d.fillRect(obs.x - 3, obs.y - 4, 36, 2);
-                
-                // Pegangan tutup dengan efek 3D
-                GradientPaint handleGradient = new GradientPaint(
-                    obs.x + 10, obs.y - 8, new Color(70, 70, 70),
-                    obs.x + 20, obs.y - 8, new Color(40, 40, 40)
-                );
-                g2d.setPaint(handleGradient);
-                g2d.fillRect(obs.x + 10, obs.y - 8, 10, 5);
-                
-                // Efek mengkilap pada pegangan
-                g2d.setColor(new Color(150, 150, 150, 70));
-                g2d.fillRect(obs.x + 11, obs.y - 7, 8, 2);
-                
-                // Garis-garis detail dengan efek mengkilap
-                g2d.setStroke(new BasicStroke(1.0f));
-                g2d.setColor(new Color(50, 50, 50, 150));
-                // Garis vertikal
-                g2d.drawLine(obs.x + 10, obs.y, obs.x + 10, obs.y + 40);
-                g2d.drawLine(obs.x + 20, obs.y, obs.x + 20, obs.y + 40);
-                // Garis horizontal
-                g2d.drawLine(obs.x, obs.y + 13, obs.x + 30, obs.y + 13);
-                g2d.drawLine(obs.x, obs.y + 26, obs.x + 30, obs.y + 26);
-                
-                // Efek highlight di sudut-sudut
-                g2d.setColor(new Color(255, 255, 255, 30));
-                g2d.drawLine(obs.x, obs.y, obs.x, obs.y + 40); // Kiri
-                g2d.drawLine(obs.x, obs.y, obs.x + 30, obs.y); // Atas
-                
-                // Efek bayangan di sudut-sudut
-                g2d.setColor(new Color(0, 0, 0, 30));
-                g2d.drawLine(obs.x + 30, obs.y, obs.x + 30, obs.y + 40); // Kanan
-                g2d.drawLine(obs.x, obs.y + 40, obs.x + 30, obs.y + 40); // Bawah
+                if (obs.isBone) {
+                    // Draw bone shadow
+                    g2d.setColor(new Color(0, 0, 0, 30));
+                    g2d.fillOval(obs.x - 5, obs.y + 35, 40, 10);
+                    
+                    // Draw bone ends
+                    g2d.setColor(new Color(240, 240, 240));
+                    g2d.fillOval(obs.x - 5, obs.y, 15, 20);
+                    g2d.fillOval(obs.x + 20, obs.y, 15, 20);
+                    
+                    // Draw bone middle
+                    g2d.fillRect(obs.x + 8, obs.y + 5, 14, 10);
+                    
+                    // Add bone details
+                    g2d.setColor(new Color(200, 200, 200));
+                    g2d.drawOval(obs.x - 5, obs.y, 15, 20);
+                    g2d.drawOval(obs.x + 20, obs.y, 15, 20);
+                    g2d.drawLine(obs.x + 8, obs.y + 5, obs.x + 22, obs.y + 5);
+                    g2d.drawLine(obs.x + 8, obs.y + 15, obs.x + 22, obs.y + 15);
+                } else {
+                    // Original trash bin drawing code
+                    // Efek bayangan yang lebih realistis dengan gradasi
+                    g2d.setColor(new Color(0, 0, 0, 30));
+                    g2d.fillOval(obs.x - 8, obs.y + 35, 46, 15);
+                    
+                    // Badan tempat sampah dengan efek 3D
+                    GradientPaint binBodyGradient = new GradientPaint(
+                        obs.x, obs.y, new Color(120, 120, 120),
+                        obs.x + 30, obs.y, new Color(80, 80, 80)
+                    );
+                    g2d.setPaint(binBodyGradient);
+                    g2d.fillRect(obs.x, obs.y, 30, 40);
+                    
+                    // Efek highlight pada badan
+                    g2d.setColor(new Color(140, 140, 140, 100));
+                    g2d.fillRect(obs.x + 2, obs.y + 2, 5, 36);
+                    
+                    // Tutup tempat sampah dengan efek 3D
+                    GradientPaint lidGradient = new GradientPaint(
+                        obs.x - 5, obs.y - 5, new Color(100, 100, 100),
+                        obs.x + 35, obs.y - 5, new Color(60, 60, 60)
+                    );
+                    g2d.setPaint(lidGradient);
+                    g2d.fillRect(obs.x - 5, obs.y - 5, 40, 10);
+                    
+                    // Efek highlight pada tutup
+                    g2d.setColor(new Color(130, 130, 130, 80));
+                    g2d.fillRect(obs.x - 3, obs.y - 4, 36, 2);
+                    
+                    // Pegangan tutup dengan efek 3D
+                    GradientPaint handleGradient = new GradientPaint(
+                        obs.x + 10, obs.y - 8, new Color(70, 70, 70),
+                        obs.x + 20, obs.y - 8, new Color(40, 40, 40)
+                    );
+                    g2d.setPaint(handleGradient);
+                    g2d.fillRect(obs.x + 10, obs.y - 8, 10, 5);
+                    
+                    // Efek mengkilap pada pegangan
+                    g2d.setColor(new Color(150, 150, 150, 70));
+                    g2d.fillRect(obs.x + 11, obs.y - 7, 8, 2);
+                    
+                    // Garis-garis detail dengan efek mengkilap
+                    g2d.setStroke(new BasicStroke(1.0f));
+                    g2d.setColor(new Color(50, 50, 50, 150));
+                    // Garis vertikal
+                    g2d.drawLine(obs.x + 10, obs.y, obs.x + 10, obs.y + 40);
+                    g2d.drawLine(obs.x + 20, obs.y, obs.x + 20, obs.y + 40);
+                    // Garis horizontal
+                    g2d.drawLine(obs.x, obs.y + 13, obs.x + 30, obs.y + 13);
+                    g2d.drawLine(obs.x, obs.y + 26, obs.x + 30, obs.y + 26);
+                    
+                    // Efek highlight di sudut-sudut
+                    g2d.setColor(new Color(255, 255, 255, 30));
+                    g2d.drawLine(obs.x, obs.y, obs.x, obs.y + 40); // Kiri
+                    g2d.drawLine(obs.x, obs.y, obs.x + 30, obs.y); // Atas
+                    
+                    // Efek bayangan di sudut-sudut
+                    g2d.setColor(new Color(0, 0, 0, 30));
+                    g2d.drawLine(obs.x + 30, obs.y, obs.x + 30, obs.y + 40); // Kanan
+                    g2d.drawLine(obs.x, obs.y + 40, obs.x + 30, obs.y + 40); // Bawah
+                }
             }
         }
 
@@ -545,23 +551,32 @@ public class SubwayGame extends JPanel implements ActionListener, KeyListener {
             }
         }
         
+        // Add these fields at the top of the class
+        private double walkCycle = 0;
+        private double walkSpeed = 0.2;
+        private double bounceHeight = 0;
+        
         private void drawDetailedLegs(Graphics2D g2d) {
-            int height = 50; // Definisikan tinggi player
+            int height = 50;
             GradientPaint legGradient = new GradientPaint(
                 playerX, playerY - jumpHeight + height - 10,
-                new Color(200, 180, 220), // Soft lilac
+                new Color(200, 180, 220),
                 playerX, playerY - jumpHeight + height + 10,
-                new Color(180, 160, 200)  // Darker lilac
+                new Color(180, 160, 200)
             );
             g2d.setPaint(legGradient);
             g2d.setStroke(new BasicStroke(4, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
-            
-            // Kaki dengan bentuk yang lebih natural
+        
+            // Update walking animation
+            walkCycle += walkSpeed;
+            bounceHeight = Math.sin(walkCycle) * 3; // Subtle bounce effect
+        
+            // Dynamic leg positions based on walk cycle
             int[][] legPositions = {
-                {10, -5, 5, 10},  // Kaki depan kiri
-                {30, -5, 35, 10}, // Kaki depan kanan
-                {15, -5, 10, 10}, // Kaki belakang kiri
-                {25, -5, 30, 10}  // Kaki belakang kanan
+                {10, (int)(-5 - Math.sin(walkCycle) * 8), 5, (int)(10 + Math.cos(walkCycle) * 5)},      // Front left
+                {30, (int)(-5 + Math.sin(walkCycle) * 8), 35, (int)(10 - Math.cos(walkCycle) * 5)},     // Front right
+                {15, (int)(-5 + Math.cos(walkCycle) * 8), 10, (int)(10 - Math.sin(walkCycle) * 5)},     // Back left
+                {25, (int)(-5 - Math.cos(walkCycle) * 8), 30, (int)(10 + Math.sin(walkCycle) * 5)}      // Back right
             };
             
             for(int[] leg : legPositions) {
@@ -613,9 +628,19 @@ public class SubwayGame extends JPanel implements ActionListener, KeyListener {
         private int speedIncreaseInterval = 1000; // Interval untuk menambah kecepatan (dalam milidetik)
         private long lastSpeedIncrease = System.currentTimeMillis();
     
+        // Remove @Override as these are just field declarations
+        private boolean isDizzy = false;
+        private long dizzyStartTime = 0;
+        private static final long DIZZY_DURATION = 3000; // 3 seconds of dizzy effect
+    
         @Override
         public void actionPerformed(ActionEvent e) {
             if (!isGameOver) {
+                // Update dizzy state
+                if (isDizzy && System.currentTimeMillis() - dizzyStartTime > DIZZY_DURATION) {
+                    isDizzy = false;
+                }
+    
                 // Update kecepatan berdasarkan waktu
                 long currentTime = System.currentTimeMillis();
                 if (currentTime - lastSpeedIncrease > speedIncreaseInterval) {
@@ -778,6 +803,9 @@ public class SubwayGame extends JPanel implements ActionListener, KeyListener {
             g2d.drawLine(x, y - size, x, y + size);  // Vertikal
             g2d.drawLine(x - size/2, y - size/2, x + size/2, y + size/2);  // Diagonal 1
             g2d.drawLine(x - size/2, y + size/2, x + size/2, y - size/2);  // Diagonal 2
+            
+            // Apply bounce effect to player position
+            playerY = 400 + (int)bounceHeight;
             
             // Add sparkle effect
             g2d.setColor(new Color(255, 255, 0, 100));

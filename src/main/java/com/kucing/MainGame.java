@@ -28,7 +28,7 @@ public class MainGame extends JFrame {
     public MainGame() {
         setTitle("Virtual Cat");
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        setSize(400, 600);
+        setSize(400, 650);  // Increased height from 600 to 650
         setLocationRelativeTo(null);
 
         mainPanel = new JPanel() {
@@ -38,41 +38,57 @@ public class MainGame extends JFrame {
                 Graphics2D g2d = (Graphics2D) g;
                 g2d.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
                 
-                // Create soft gradient background
+                // Create warm living room gradient background
                 GradientPaint gradient = new GradientPaint(
-                    0, 0, new Color(230, 230, 250),
-                    0, getHeight(), new Color(209, 196, 233)
+                    0, 0, new Color(255, 248, 220), // Warm cream color
+                    0, getHeight(), new Color(255, 235, 205) // Lighter warm tone
                 );
                 g2d.setPaint(gradient);
                 g2d.fillRect(0, 0, getWidth(), getHeight());
                 
-                // Add decorative circles
+                // Add living room decorations
                 drawDecorations(g2d);
             }
             
             private void drawDecorations(Graphics2D g2d) {
-                // Draw floating bubbles
-                for (int i = 0; i < 15; i++) {
-                    int size = (int) (Math.random() * 40) + 20;
-                    int x = (int) (Math.random() * getWidth());
-                    int y = (int) (Math.random() * getHeight());
-                    
-                    // Create bubble gradient
-                    GradientPaint bubbleGradient = new GradientPaint(
-                        x, y, new Color(255, 255, 255, 30),
-                        x + size, y + size, new Color(255, 255, 255, 5)
-                    );
-                    g2d.setPaint(bubbleGradient);
-                    g2d.fillOval(x, y, size, size);
-                }
-                
-                // Draw subtle pattern
-                g2d.setColor(new Color(255, 255, 255, 20));
-                for (int i = 0; i < getWidth(); i += 30) {
-                    for (int j = 0; j < getHeight(); j += 30) {
-                        g2d.drawRoundRect(i, j, 20, 20, 5, 5);
+                // Draw wallpaper pattern
+                g2d.setColor(new Color(139, 69, 19, 30)); // Semi-transparent brown
+                int patternSize = 40;
+                for (int i = 0; i < getWidth(); i += patternSize) {
+                    for (int j = 0; j < getHeight(); j += patternSize) {
+                        g2d.drawRect(i, j, patternSize, patternSize);
+                        g2d.drawLine(i, j, i + patternSize, j + patternSize);
                     }
                 }
+
+                // Draw furniture silhouettes
+                g2d.setColor(new Color(101, 67, 33, 40)); // Dark brown transparent
+                
+                // Draw sofa
+                g2d.fillRoundRect(getWidth()/2 - 100, getHeight() - 200, 200, 80, 20, 20);
+                g2d.fillRoundRect(getWidth()/2 - 90, getHeight() - 220, 180, 30, 10, 10);
+                
+                // Draw side table
+                g2d.fillRect(getWidth() - 80, getHeight() - 150, 50, 70);
+                
+                // Draw lamp
+                g2d.setColor(new Color(255, 223, 186, 60));
+                g2d.fillOval(getWidth() - 70, getHeight() - 250, 30, 30);
+                g2d.setColor(new Color(101, 67, 33, 40));
+                g2d.fillRect(getWidth() - 60, getHeight() - 220, 10, 70);
+                
+                // Add subtle lighting effect
+                RadialGradientPaint lampGlow = new RadialGradientPaint(
+                    new Point(getWidth() - 55, getHeight() - 235),
+                    100f,
+                    new float[]{0.0f, 1.0f},
+                    new Color[]{
+                        new Color(255, 255, 200, 30),
+                        new Color(255, 255, 200, 0)
+                    }
+                );
+                g2d.setPaint(lampGlow);
+                g2d.fillOval(getWidth() - 105, getHeight() - 285, 100, 100);
             }
         };
         mainPanel.setLayout(new BorderLayout());
@@ -80,14 +96,32 @@ public class MainGame extends JFrame {
         
         // Cat display area
         catPanel = new CatPanel();
-        mainPanel.add(catPanel, BorderLayout.CENTER);
+        catPanel.setOpaque(false);  // Make panel transparent to show background
+        JPanel catContainer = new JPanel(new BorderLayout());
+        catContainer.setOpaque(false);  // Make container transparent too
+        catContainer.add(catPanel, BorderLayout.CENTER);
+        mainPanel.add(catContainer, BorderLayout.CENTER);
 
         // Status bars dengan tema yang selaras
-        JPanel statusPanel = new JPanel(new GridLayout(3, 2, 10, 10));
-        statusPanel.setBackground(SOFT_PURPLE);
+        JPanel statusPanel = new JPanel(new GridLayout(3, 2, 10, 10)) {
+            @Override
+            protected void paintComponent(Graphics g) {
+                super.paintComponent(g);
+                Graphics2D g2d = (Graphics2D) g;
+                g2d.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
+                
+                // Create a soft gradient background
+                GradientPaint gradient = new GradientPaint(
+                    0, 0, new Color(255, 248, 220, 180), // Warm cream color with transparency
+                    0, getHeight(), new Color(255, 235, 205, 180) // Lighter warm tone with transparency
+                );
+                g2d.setPaint(gradient);
+                g2d.fillRect(0, 0, getWidth(), getHeight());
+            }
+        };
+        statusPanel.setOpaque(false);
         statusPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
         
-        // Styling labels dan progress bars
         JLabel hungerLabel = createStyledLabel("Hunger:");
         hungerBar = createStyledProgressBar();
         
@@ -107,19 +141,87 @@ public class MainGame extends JFrame {
         mainPanel.add(statusPanel, BorderLayout.NORTH);
 
         // Button panel dengan styling
-        JPanel buttonPanel = new JPanel();
-        buttonPanel.setBackground(SOFT_PURPLE);
+        JPanel buttonPanel = new JPanel() {
+            @Override
+            protected void paintComponent(Graphics g) {
+                super.paintComponent(g);
+                Graphics2D g2d = (Graphics2D) g;
+                g2d.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
+                
+                // Create warm living room gradient background matching main panel
+                GradientPaint gradient = new GradientPaint(
+                    0, 0, new Color(255, 248, 220), // Warm cream color
+                    0, getHeight(), new Color(255, 235, 205) // Lighter warm tone
+                );
+                g2d.setPaint(gradient);
+                g2d.fillRect(0, 0, getWidth(), getHeight());
+                
+                // Add subtle pattern to match room decoration
+                g2d.setColor(new Color(139, 69, 19, 15)); // Very light brown pattern
+                int patternSize = 20;
+                for (int i = 0; i < getWidth(); i += patternSize) {
+                    for (int j = 0; j < getHeight(); j += patternSize) {
+                        g2d.drawRect(i, j, patternSize, patternSize);
+                    }
+                }
+            }
+        };
+        buttonPanel.setOpaque(false);
         buttonPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
         
         feedButton = createStyledButton("Feed");
         playButton = createStyledButton("Play");
         sleepButton = createStyledButton("Sleep");
         
-        buttonPanel.add(feedButton);
-        buttonPanel.add(Box.createRigidArea(new Dimension(10, 0)));
-        buttonPanel.add(playButton);
-        buttonPanel.add(Box.createRigidArea(new Dimension(10, 0)));
-        buttonPanel.add(sleepButton);
+        // In the button panel section
+        buttonPanel.setLayout(new BoxLayout(buttonPanel, BoxLayout.Y_AXIS));
+        
+        // Create a panel for main game buttons
+        JPanel gameButtonPanel = new JPanel();
+        gameButtonPanel.setOpaque(false);
+        gameButtonPanel.add(feedButton);
+        gameButtonPanel.add(Box.createRigidArea(new Dimension(10, 0)));
+        gameButtonPanel.add(playButton);
+        gameButtonPanel.add(Box.createRigidArea(new Dimension(10, 0)));
+        gameButtonPanel.add(sleepButton);
+        
+        // Add game buttons panel
+        buttonPanel.add(gameButtonPanel);
+        buttonPanel.add(Box.createRigidArea(new Dimension(0, 15))); // Vertical spacing
+        
+        // Create logout button panel
+        JPanel logoutPanel = new JPanel();
+        logoutPanel.setOpaque(false);
+        JButton logoutButton = createStyledButton("Logout");
+        logoutButton.setBackground(new Color(220, 53, 69));
+        logoutButton.setPreferredSize(new Dimension(120, 35));
+        
+        // Add hover effect
+        logoutButton.addMouseListener(new java.awt.event.MouseAdapter() {
+            public void mouseEntered(java.awt.event.MouseEvent evt) {
+                logoutButton.setBackground(new Color(200, 35, 51));
+            }
+            public void mouseExited(java.awt.event.MouseEvent evt) {
+                logoutButton.setBackground(new Color(220, 53, 69));
+            }
+        });
+        
+        logoutButton.addActionListener(e -> {
+            int confirm = JOptionPane.showConfirmDialog(
+                this,
+                "Are you sure you want to logout?",
+                "Confirm Logout",
+                JOptionPane.YES_NO_OPTION
+            );
+            
+            if (confirm == JOptionPane.YES_OPTION) {
+                dispose();
+                new Login().setVisible(true);
+            }
+        });
+        
+        logoutPanel.add(logoutButton);
+        buttonPanel.add(logoutPanel);
         
         mainPanel.add(buttonPanel, BorderLayout.SOUTH);
 
@@ -186,9 +288,19 @@ public class MainGame extends JFrame {
     }
 
     private void updateCatMood() {
-        if (hungerBar.getValue() < 30 || happinessBar.getValue() < 30 || sleepinessBar.getValue() < 30) {  // Changed variable
+        // Check if all bars are at 100%
+        if (hungerBar.getValue() == 100 && happinessBar.getValue() == 100 && sleepinessBar.getValue() == 100) {
+            JOptionPane.showMessageDialog(this, "Peliharaanmu sehat dan bahagia!", "Status Kucing", JOptionPane.INFORMATION_MESSAGE);
+        }
+        
+        // Update cat's animations
+        catPanel.updateBlinking();
+        catPanel.updateBreathing();
+        
+        // Existing mood logic
+        if (hungerBar.getValue() < 30 || happinessBar.getValue() < 30 || sleepinessBar.getValue() < 30) {
             catPanel.setMood(0); // sad
-        } else if (hungerBar.getValue() < 60 || happinessBar.getValue() < 60 || sleepinessBar.getValue() < 60) {  // Changed variable
+        } else if (hungerBar.getValue() < 60 || happinessBar.getValue() < 60 || sleepinessBar.getValue() < 60) {
             catPanel.setMood(1); // normal
         } else {
             catPanel.setMood(2); // happy

@@ -301,8 +301,23 @@ public class MainGame extends JFrame {
             );
             
             if (confirm == JOptionPane.YES_OPTION) {
-                dispose();
-                new Login().setVisible(true);
+                // Stop any playing sounds
+                if (sleepSound != null) sleepSound.stop();
+                if (eatSound != null) eatSound.stop();
+                
+                // Get all windows owned by this application
+                Window[] windows = Window.getWindows();
+                
+                // Create and show new login window
+                Login loginFrame = new Login();
+                loginFrame.setVisible(true);
+                
+                // Close all other windows
+                for (Window window : windows) {
+                    if (window instanceof JFrame && window != loginFrame) {
+                        window.dispose();
+                    }
+                }
             }
         });
         

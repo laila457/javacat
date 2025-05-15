@@ -821,19 +821,8 @@ public class SubwayGame extends JPanel implements ActionListener, KeyListener {
                         jumpSound.start();
                     }
                 }
-            } else if (e.getKeyCode() == KeyEvent.VK_SPACE) {
-                // Reset game
-                backButton.setVisible(false);
-                isGameOver = false;
-                score = 0;
-                obstacles.clear();
-                playerLane = 1;
-                int trackWidth = 300;
-                int startX = (getWidth() - trackWidth) / 2;
-                playerX = startX + (playerLane * (trackWidth/3)) + 5;
             }
         }
-    
         @Override
         public void keyTyped(KeyEvent e) {}
     

@@ -333,6 +333,9 @@ public class MainGame extends JFrame {
             // Store current state
             JFrame currentFrame = (JFrame) SwingUtilities.getWindowAncestor(mainPanel);
             
+            // Disable play button temporarily to prevent multiple clicks
+            playButton.setEnabled(false);
+            
             // Start SubwayGame
             SubwayGame.startGame(currentFrame);
             
@@ -347,6 +350,9 @@ public class MainGame extends JFrame {
                 // Reset focus and continue cat game loop
                 mainPanel.requestFocusInWindow();
                 startGameLoop();
+                
+                // Re-enable play button
+                playButton.setEnabled(true);
             });
         });
         sleepButton.addActionListener(e -> sleep());

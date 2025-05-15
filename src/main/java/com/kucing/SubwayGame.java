@@ -6,7 +6,8 @@ import java.awt.event.*;
 import java.awt.geom.QuadCurve2D;
 import java.util.ArrayList;
 import java.util.Random;
-
+import javax.sound.sampled.*;
+import java.io.File;
 
 public class SubwayGame extends JPanel implements ActionListener, KeyListener {
     private JFrame parentFrame;  // Add this line
@@ -121,19 +122,78 @@ public class SubwayGame extends JPanel implements ActionListener, KeyListener {
             requestFocusInWindow();
         }
     
+        // Add these fields at the top of the class
+        private Clip jumpSound;
+        private Clip moveSound;
+        private Clip gameOverSound;
+        private Clip collisionSound;  // Move this here with other sound fields
+    
+        private void initializeSounds() {
+            try {
+                // Load jump sound
+                AudioInputStream jumpStream = AudioSystem.getAudioInputStream(
+                    new File("c:\\Java\\javacat\\src\\main\\resources\\sounds\\jump.wav"));
+                jumpSound = AudioSystem.getClip();
+                jumpSound.open(jumpStream);
+                
+                // Load move sound
+                AudioInputStream moveStream = AudioSystem.getAudioInputStream(
+                    new File("c:\\Java\\javacat\\src\\main\\resources\\sounds\\moved.wav"));
+                moveSound = AudioSystem.getClip();
+                moveSound.open(moveStream);
+                
+                // Load game over sound
+                AudioInputStream gameOverStream = AudioSystem.getAudioInputStream(
+                    new File("c:\\Java\\javacat\\src\\main\\resources\\sounds\\gameover.wav"));
+                gameOverSound = AudioSystem.getClip();
+                gameOverSound.open(gameOverStream);
+                
+                // Load collision sound
+                AudioInputStream collisionStream = AudioSystem.getAudioInputStream(
+                    new File("c:\\Java\\javacat\\src\\main\\resources\\sounds\\collision.wav"));
+                collisionSound = AudioSystem.getClip();
+                collisionSound.open(collisionStream);
+                
+            } catch (Exception e) {
+                System.out.println("Error loading sounds: " + e.getMessage());
+                e.printStackTrace();
+            }
+        }
+
         private void handleGameOver() {
-           isGameOver = true;
-            // Remove the immediate leaderboard display
+            isGameOver = true;
+            
+            // Play collision sound
+            if (collisionSound != null) {
+                collisionSound.setFramePosition(0);
+                collisionSound.start();
+            }
+            
+            // Play game over sound after a short delay
+            Timer soundTimer = new Timer(500, e -> {
+                if (gameOverSound != null) {
+                    gameOverSound.setFramePosition(0);
+                    gameOverSound.start();
+                }
+                ((Timer)e.getSource()).stop();
+            });
+            soundTimer.setRepeats(false);
+            soundTimer.start();
         }
     
+
+        // Modify the constructor to initialize sounds
         public SubwayGame(JFrame frame) {
             this.parentFrame = frame;
             setPreferredSize(new Dimension(800, 600));
-            setBackground(new Color(135, 206, 235)); // Warna langit
+            setBackground(new Color(135, 206, 235));
             timer = new Timer(20, this);
             timer.start();
             addKeyListener(this);
             setFocusable(true);
+            
+            // Initialize sounds
+            initializeSounds();
             
             // Initialize back button
             backButton = new JButton("Back to Leaderboard");
@@ -187,52 +247,87 @@ public class SubwayGame extends JPanel implements ActionListener, KeyListener {
             }
         }
         
-        // Update color scheme
-        private static final Color SKY_TOP = new Color(100, 149, 237);    // Cornflower blue
-        private static final Color SKY_BOTTOM = new Color(135, 206, 235); // Sky blue
-        private static final Color TRACK_COLOR = new Color(103, 58, 183);
-        private static final Color TRACK_LINES = new Color(255, 255, 255, 180);
+        // Update color scheme with more vibrant colors
+        private static final Color SKY_TOP = new Color(230, 210, 255);    // Light magical purple
+        private static final Color SKY_BOTTOM = new Color(180, 200, 255); // Soft magical blue
+        private static final Color TRACK_COLOR = new Color(75, 0, 130, 180); // Semi-transparent dark purple
+        private static final Color TRACK_LINES = new Color(255, 255, 255, 150);
         
         private void drawTrack(Graphics2D g2d) {
             int trackWidth = 300;
             int startX = (getWidth() - trackWidth) / 2;
             
-            // Draw background with stars
-            GradientPaint skyGradient = new GradientPaint(
-                0, 0, SKY_TOP,
-                0, getHeight(), SKY_BOTTOM
+            // Enhanced magical background with rainbow gradient
+            LinearGradientPaint skyGradient = new LinearGradientPaint(
+                0, 0, 0, getHeight(),
+                new float[]{0.0f, 0.3f, 0.7f, 1.0f},
+                new Color[]{
+                    new Color(230, 210, 255), // Light purple
+                    new Color(200, 220, 255), // Light blue
+                    new Color(255, 200, 220), // Light pink
+                    new Color(180, 200, 255)  // Soft blue
+                }
             );
             g2d.setPaint(skyGradient);
             g2d.fillRect(0, 0, getWidth(), getHeight());
             
-            // Add twinkling stars
-            g2d.setColor(new Color(255, 255, 255, 150));
+            // Add rainbow sparkles
             long currentTime = System.currentTimeMillis();
-            Random rand = new Random(currentTime / 1000);
-            for (int i = 0; i < 50; i++) {
-                int x = rand.nextInt(getWidth());
-                int y = rand.nextInt(getHeight());
-                int size = rand.nextInt(3) + 1;
-                g2d.fillOval(x, y, size, size);
+            for (int i = 0; i < 40; i++) {
+                double angle = (currentTime / 1000.0 + i) * Math.PI / 6;
+                int x = (int)(getWidth() / 2 + Math.cos(angle) * getWidth() / 3);
+                int y = (int)(getHeight() / 2 + Math.sin(angle) * getHeight() / 3);
+                int sparkSize = 3 + (int)(Math.sin(currentTime / 500.0 + i) * 2);
+                
+                // Rainbow colors for sparkles
+                float hue = (float)((currentTime / 2000.0 + i / 30.0) % 1.0);
+                Color sparkleColor = Color.getHSBColor(hue, 0.8f, 1.0f);
+                g2d.setColor(new Color(sparkleColor.getRed(), sparkleColor.getGreen(), 
+                    sparkleColor.getBlue(), 40 + (int)(Math.sin(currentTime / 700.0 + i) * 20)));
+                g2d.fillOval(x, y, sparkSize, sparkSize);
             }
             
-            // Draw straight track
+            // Add magical track glow
+            RadialGradientPaint trackGlow = new RadialGradientPaint(
+                new Point(getWidth()/2, getHeight()/2),
+                trackWidth * 1.5f,
+                new float[]{0.4f, 1.0f},
+                new Color[]{
+                    new Color(255, 255, 255, 0),
+                    new Color(147, 112, 219, 60)
+                }
+            );
+            g2d.setPaint(trackGlow);
+            g2d.fillRect(0, 0, getWidth(), getHeight());
+
+            // Draw track with magical border
             g2d.setColor(TRACK_COLOR);
             g2d.fillRect(startX, 0, trackWidth, getHeight());
             
-            // Draw lane lines
+            // Add rainbow edge effect
+            for (int i = 0; i < 10; i++) {
+                float hue = (float)((currentTime / 1000.0 + i / 10.0) % 1.0);
+                Color edgeColor = Color.getHSBColor(hue, 0.7f, 1.0f);
+                g2d.setColor(new Color(edgeColor.getRed(), edgeColor.getGreen(), 
+                    edgeColor.getBlue(), 25 - i * 2));
+                g2d.drawRect(startX - i, 0, trackWidth + i * 2, getHeight());
+            }
+            
+            // Draw lane lines with magical glow
             g2d.setColor(TRACK_LINES);
-            // Left lane divider
             int laneWidth = trackWidth / 3;
             for(int y = backgroundOffset % 40; y < getHeight(); y += 40) {
+                // Add glowing effect to lines
+                GradientPaint lineGlow = new GradientPaint(
+                    startX + laneWidth, y,
+                    new Color(255, 255, 255, 180),
+                    startX + laneWidth, y + 20,
+                    new Color(255, 255, 255, 40)
+                );
+                g2d.setPaint(lineGlow);
                 g2d.fillRect(startX + laneWidth - 2, y, 4, 20);
                 g2d.fillRect(startX + laneWidth * 2 - 2, y, 4, 20);
             }
-            
-            // Add side barriers
-            g2d.setColor(new Color(255, 255, 255, 100));
-            g2d.fillRect(startX - 5, 0, 5, getHeight());
-            g2d.fillRect(startX + trackWidth, 0, 5, getHeight());
         }
 
         private void drawObstacles(Graphics2D g2d) {
@@ -511,7 +606,7 @@ public class SubwayGame extends JPanel implements ActionListener, KeyListener {
                 // Kumis kiri
                 g2d.setColor(new Color(0, 0, 0, 150 - Math.abs(i) * 30));
                 g2d.drawLine(
-                    playerX + 15, 
+                    playerX + 15,
                     playerY - jumpHeight - 3 + i*2,
                     playerX - 5,
                     playerY - jumpHeight - 1 + i*2
@@ -705,14 +800,26 @@ public class SubwayGame extends JPanel implements ActionListener, KeyListener {
                     int trackWidth = 300;
                     int startX = (getWidth() - trackWidth) / 2;
                     playerX = startX + (playerLane * (trackWidth/3)) + 5;
+                    if (moveSound != null) {
+                        moveSound.setFramePosition(0);
+                        moveSound.start();
+                    }
                 } else if (e.getKeyCode() == KeyEvent.VK_RIGHT && playerLane < 2) {
                     playerLane++;
                     int trackWidth = 300;
                     int startX = (getWidth() - trackWidth) / 2;
                     playerX = startX + (playerLane * (trackWidth/3)) + 5;
+                    if (moveSound != null) {
+                        moveSound.setFramePosition(0);
+                        moveSound.start();
+                    }
                 } else if (e.getKeyCode() == KeyEvent.VK_SPACE && !isJumping) {
                     isJumping = true;
                     jumpHeight = 0;
+                    if (jumpSound != null) {
+                        jumpSound.setFramePosition(0);
+                        jumpSound.start();
+                    }
                 }
             } else if (e.getKeyCode() == KeyEvent.VK_SPACE) {
                 // Reset game

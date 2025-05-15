@@ -2,6 +2,9 @@ package main.java.com.kucing;
 
 import javax.swing.*;
 import java.awt.*;
+import javax.sound.sampled.*;
+import java.net.URL;
+import java.io.File;
 
 public class MainGame extends JFrame {
     private JPanel mainPanel;
@@ -25,11 +28,27 @@ public class MainGame extends JFrame {
     private static final Color PASTEL_BLUE = new Color(174, 198, 255);
     private static final Color CLOUD_WHITE = new Color(255, 255, 255, 40);
     
+    // Add sleep sound field at the top with other fields
+    private Clip sleepSound;
+    private Clip eatSound;
+
+    // After setting window properties in constructor
     public MainGame() {
         setTitle("Virtual Cat");
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        setSize(400, 650);  // Increased height from 600 to 650
+        setSize(400, 650);
         setLocationRelativeTo(null);
+
+        // Initialize sleep sound
+        try {
+            AudioInputStream sleepStream = AudioSystem.getAudioInputStream(
+                new File("c:\\Java\\javacat\\src\\main\\resources\\sounds\\sleep.wav"));
+            sleepSound = AudioSystem.getClip();
+            sleepSound.open(sleepStream);
+        } catch (Exception e) {
+            System.out.println("Error loading sleep sound: " + e.getMessage());
+            e.printStackTrace();
+        }
 
         mainPanel = new JPanel() {
             @Override
@@ -103,6 +122,8 @@ public class MainGame extends JFrame {
         mainPanel.add(catContainer, BorderLayout.CENTER);
 
         // Status bars dengan tema yang selaras
+        // Status bars panel with matching theme
+        // Status bars panel with enhanced styling
         JPanel statusPanel = new JPanel(new GridLayout(3, 2, 10, 10)) {
             @Override
             protected void paintComponent(Graphics g) {
@@ -110,12 +131,49 @@ public class MainGame extends JFrame {
                 Graphics2D g2d = (Graphics2D) g;
                 g2d.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
                 
-                // Create a soft gradient background
+                // Match CatPanel's gradient with enhanced colors
                 GradientPaint gradient = new GradientPaint(
-                    0, 0, new Color(255, 248, 220, 180), // Warm cream color with transparency
-                    0, getHeight(), new Color(255, 235, 205, 180) // Lighter warm tone with transparency
+                    0, 0, new Color(245, 238, 248, 240), // Light lilac with transparency
+                    0, getHeight(), new Color(235, 227, 253, 240)  // Soft purple with transparency
                 );
                 g2d.setPaint(gradient);
+                g2d.fillRect(0, 0, getWidth(), getHeight());
+                
+                // Add sparkly pattern
+                long currentTime = System.currentTimeMillis();
+                for (int i = 0; i < 20; i++) {
+                    double angle = (currentTime / 1000.0 + i) * Math.PI / 6;
+                    int x = (int)(getWidth() / 2 + Math.cos(angle) * getWidth() / 3);
+                    int y = (int)(getHeight() / 2 + Math.sin(angle) * getHeight() / 3);
+                    int sparkSize = 3 + (int)(Math.sin(currentTime / 500.0 + i) * 2);
+                    
+                    // Sparkle with changing opacity
+                    int alpha = 40 + (int)(Math.sin(currentTime / 700.0 + i) * 20);
+                    g2d.setColor(new Color(255, 255, 255, alpha));
+                    g2d.fillOval(x, y, sparkSize, sparkSize);
+                }
+                
+                // Add subtle geometric pattern
+                g2d.setColor(new Color(255, 255, 255, 30));
+                int patternSize = Math.min(getWidth(), getHeight()) / 8;
+                for (int i = 0; i < getWidth(); i += patternSize * 2) {
+                    for (int j = 0; j < getHeight(); j += patternSize * 2) {
+                        g2d.fillRoundRect(i, j, patternSize, patternSize, 8, 8);
+                    }
+                }
+                
+                // Add shimmering effect
+                RadialGradientPaint shimmer = new RadialGradientPaint(
+                    new Point(getWidth()/2, getHeight()/2),
+                    Math.max(getWidth(), getHeight()),
+                    new float[]{0.0f, 0.5f, 1.0f},
+                    new Color[]{
+                        new Color(255, 255, 255, 0),
+                        new Color(255, 255, 255, 20),
+                        new Color(255, 255, 255, 0)
+                    }
+                );
+                g2d.setPaint(shimmer);
                 g2d.fillRect(0, 0, getWidth(), getHeight());
             }
         };
@@ -140,7 +198,7 @@ public class MainGame extends JFrame {
         
         mainPanel.add(statusPanel, BorderLayout.NORTH);
 
-        // Button panel dengan styling
+        // Button panel with enhanced styling
         JPanel buttonPanel = new JPanel() {
             @Override
             protected void paintComponent(Graphics g) {
@@ -148,22 +206,50 @@ public class MainGame extends JFrame {
                 Graphics2D g2d = (Graphics2D) g;
                 g2d.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
                 
-                // Create warm living room gradient background matching main panel
+                // Match status panel's gradient with enhanced colors
                 GradientPaint gradient = new GradientPaint(
-                    0, 0, new Color(255, 248, 220), // Warm cream color
-                    0, getHeight(), new Color(255, 235, 205) // Lighter warm tone
+                    0, 0, new Color(245, 238, 248, 240), // Light lilac with transparency
+                    0, getHeight(), new Color(235, 227, 253, 240)  // Soft purple with transparency
                 );
                 g2d.setPaint(gradient);
                 g2d.fillRect(0, 0, getWidth(), getHeight());
                 
-                // Add subtle pattern to match room decoration
-                g2d.setColor(new Color(139, 69, 19, 15)); // Very light brown pattern
-                int patternSize = 20;
-                for (int i = 0; i < getWidth(); i += patternSize) {
-                    for (int j = 0; j < getHeight(); j += patternSize) {
-                        g2d.drawRect(i, j, patternSize, patternSize);
+                // Add sparkly pattern
+                long currentTime = System.currentTimeMillis();
+                for (int i = 0; i < 20; i++) {
+                    double angle = (currentTime / 1000.0 + i) * Math.PI / 6;
+                    int x = (int)(getWidth() / 2 + Math.cos(angle) * getWidth() / 3);
+                    int y = (int)(getHeight() / 2 + Math.sin(angle) * getHeight() / 3);
+                    int sparkSize = 3 + (int)(Math.sin(currentTime / 500.0 + i) * 2);
+                    
+                    // Sparkle with changing opacity
+                    int alpha = 40 + (int)(Math.sin(currentTime / 700.0 + i) * 20);
+                    g2d.setColor(new Color(255, 255, 255, alpha));
+                    g2d.fillOval(x, y, sparkSize, sparkSize);
+                }
+                
+                // Add subtle geometric pattern
+                g2d.setColor(new Color(255, 255, 255, 30));
+                int patternSize = Math.min(getWidth(), getHeight()) / 8;
+                for (int i = 0; i < getWidth(); i += patternSize * 2) {
+                    for (int j = 0; j < getHeight(); j += patternSize * 2) {
+                        g2d.fillRoundRect(i, j, patternSize, patternSize, 8, 8);
                     }
                 }
+                
+                // Add shimmering effect
+                RadialGradientPaint shimmer = new RadialGradientPaint(
+                    new Point(getWidth()/2, getHeight()/2),
+                    Math.max(getWidth(), getHeight()),
+                    new float[]{0.0f, 0.5f, 1.0f},
+                    new Color[]{
+                        new Color(255, 255, 255, 0),
+                        new Color(255, 255, 255, 20),
+                        new Color(255, 255, 255, 0)
+                    }
+                );
+                g2d.setPaint(shimmer);
+                g2d.fillRect(0, 0, getWidth(), getHeight());
             }
         };
         buttonPanel.setOpaque(false);
@@ -263,6 +349,12 @@ public class MainGame extends JFrame {
         mainPanel.add(food);
         mainPanel.revalidate();
         mainPanel.repaint();
+        
+        // Play eating sound
+        if (eatSound != null) {
+            eatSound.setFramePosition(0);
+            eatSound.start();
+        }
     }
 
     private void sleep() {
@@ -271,8 +363,16 @@ public class MainGame extends JFrame {
             sleepButton.setText("Wake Up");
             sleepinessBar.setValue(Math.min(100, sleepinessBar.getValue() + 20));
             happinessBar.setValue(Math.min(100, happinessBar.getValue() + 10));
+            // Play sleep sound
+            if (sleepSound != null) {
+                sleepSound.setFramePosition(0);
+                sleepSound.start();
+            }
         } else {
             sleepButton.setText("Sleep");
+            if (sleepSound != null) {
+                sleepSound.stop();
+            }
         }
     }
 
